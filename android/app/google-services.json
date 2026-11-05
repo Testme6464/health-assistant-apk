@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "946002175834",
+    "project_id": "health-assistant-65709",
+    "storage_bucket": "health-assistant-65709.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:946002175834:android:4c8bd7464d87ae057db563",
+        "android_client_info": {
+          "package_name": "com.tryo.healthassistant"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "946002175834-efm04eb95nejbcjrte7e9achoi2t0vln.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCRjI8ClqF5kXhltVbwQm4PhaYm6RBTxFo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "946002175834-efm04eb95nejbcjrte7e9achoi2t0vln.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
