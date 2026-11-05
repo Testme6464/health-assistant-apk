@@ -1,0 +1,38 @@
+name: healthassistant
+description: "Health Assistant — Burmese health tracker with Firebase sync (offline-first)."
+publish_to: "none"
+version: 0.1.0+1
+
+environment:
+  sdk: ^3.9.0
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^2.0.0
+  # Firebase (Spark plan — free, no card). google-services.json is in android/app/.
+  firebase_core: ^4.0.0
+  firebase_auth: ^6.0.0
+  cloud_firestore: ^6.0.0
+  google_sign_in: ^7.0.0
+  # Local storage: secure for API keys, plain JSON cache for offline data.
+  flutter_secure_storage: ^11.2.0
+  shared_preferences: ^2.5.6
+  # Connectivity detection for offline-first sync.
+  connectivity_plus: ^7.0.0
+  http: ^1.6.0
+  url_launcher: ^6.3.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+flutter:
+  uses-material-design: true
+  fonts:
+    - family: NotoSansMyanmar
+      fonts:
+        - asset: assets/fonts/NotoSansMyanmar-Regular.ttf
+  assets:
+    - assets/fonts/NotoSansMyanmar-Regular.ttf
