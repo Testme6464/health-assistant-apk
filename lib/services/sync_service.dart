@@ -65,6 +65,7 @@ class SyncService {
     'reminders',
     'plans',
     'waterLog',
+    'medLog',
   ];
 
   /// Start listening for connectivity changes; run an initial sync.

@@ -31,6 +31,7 @@ class LocalStore {
   static const List<String> collections = [
     'profiles',
     'meds',
+    'medLog',
     'foodLog',
     'waterLog',
     'sleepLog',
@@ -66,6 +67,7 @@ class LocalStore {
         'activeProfileId': '',
         'profiles': <Map<String, dynamic>>[],
         'meds': <Map<String, dynamic>>[],
+        'medLog': <String, dynamic>{},
         'foodLog': <Map<String, dynamic>>[],
         'waterLog': <String, dynamic>{},
         'sleepLog': <Map<String, dynamic>>[],
@@ -94,6 +96,15 @@ class LocalStore {
       };
 
   Map<String, dynamic> get db => _db;
+
+  /// Replace the whole local DB (used by backup import / wipe).
+  Future<void> resetDb() async {
+    _db = _emptyDb();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_dirtyKey);
+    await prefs.remove(_lastSyncKey);
+    await save();
+  }
 
   List<Map<String, dynamic>> list(String collection) {
     final v = _db[collection];
