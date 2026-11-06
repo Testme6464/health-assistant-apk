@@ -27,7 +27,7 @@ Future<void> showActivityModal(
   final minsCtrl = TextEditingController(
     text: ex != null ? '${ex['minutes'] ?? ''}' : '',
   );
-  var exType = (ex?['exerciseType'] as num?)?.toInt() ?? 1;
+  var exType = toInt(ex?['exerciseType']) ?? 1;
 
   await showDialog(
     context: context,

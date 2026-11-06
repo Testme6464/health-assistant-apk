@@ -79,7 +79,7 @@ class _FoodTabState extends State<FoodTab> with TabLoader<FoodTab> {
   int _calorieTarget(HealthProfile p) {
     final s = local.map('settings');
     if (s['calorieTargetMode'] == 'manual') {
-      return (s['calorieTarget'] as num?)?.toInt() ?? 2000;
+      return toInt(s['calorieTarget']) ?? 2000;
     }
     return p.calorieTarget();
   }
@@ -238,7 +238,7 @@ class _FoodTabState extends State<FoodTab> with TabLoader<FoodTab> {
             if (it is Map) {
               allItems.add((
                 name: '${it['name'] ?? ''}',
-                kcal: (it['kcal'] as num?)?.toInt() ?? 0,
+                kcal: toInt(it['kcal']) ?? 0,
               ));
             }
           }
@@ -302,7 +302,7 @@ class _FoodTabState extends State<FoodTab> with TabLoader<FoodTab> {
     final target = _calorieTarget(p);
     final logs = _todaysLogs(p);
     final kcalToday =
-        logs.fold<int>(0, (a, f) => a + ((f['kcal'] as num?)?.toInt() ?? 0));
+        logs.fold<int>(0, (a, f) => a + (toInt(f['kcal']) ?? 0));
     final pct = (kcalToday / target * 100).round().clamp(0, 100);
     final weight = p.weightKg ?? 60;
 
@@ -860,7 +860,7 @@ class _FoodTabState extends State<FoodTab> with TabLoader<FoodTab> {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      '${(f['kcal'] as num?)?.toInt() ?? 0} kcal',
+                      '${toInt(f['kcal']) ?? 0} kcal',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(width: 8),

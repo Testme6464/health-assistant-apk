@@ -209,7 +209,7 @@ List<MedDose> todaysMedSchedule(
 
 /// Days of supply left (web: medSupplyLeft). Null when not tracked.
 int? medSupplyLeft(Map<String, dynamic> m) {
-  final days = (m['supplyDays'] as num?)?.toInt();
+  final days = toInt(m['supplyDays']);
   final start = m['supplyStartDate'] as String?;
   if (days == null || start == null || start.isEmpty) return null;
   final end = parseDate(addDaysStr(start, days));
@@ -491,7 +491,7 @@ Future<void> deletePlan(LocalStore local, String profileId) async {
     dayLabel: day?['day'] as String?,
     dayText: day?['text'] as String?,
     dayAlt: day?['alt'] as String?,
-    calorieTarget: (plan['calorieTarget'] as num?)?.toInt() ?? 0,
+    calorieTarget: toInt(plan['calorieTarget']) ?? 0,
     meals: meals,
   );
 }
@@ -530,7 +530,7 @@ Future<void> syncProfileWeightFromLog(
     ..sort((a, b) => (a['date'] as String).compareTo(b['date'] as String));
   if (logs.isEmpty) return;
   final latest = logs.last;
-  p.weightKg = (latest['weight'] as num?)?.toDouble();
+  p.weightKg = toDouble(latest['weight']);
   p.updatedAt = DateTime.now().millisecondsSinceEpoch;
   await local.upsert('profiles', p.toJson());
 }
@@ -539,7 +539,7 @@ Future<void> syncProfileWeightFromLog(
 Future<void> addWater(LocalStore local, int ml) async {
   final t = todayStr();
   final wl = local.map('waterLog');
-  wl[t] = ((wl[t] as num?)?.toInt() ?? 0) + ml;
+  wl[t] = (toInt(wl[t]) ?? 0) + ml;
   local.db['waterLog'] = wl;
   await local.markDirty('waterLog');
   await local.save();

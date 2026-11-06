@@ -159,17 +159,17 @@ class _ProgressTabState extends State<ProgressTab> with TabLoader<ProgressTab> {
       kcalSum += local
           .list('foodLog')
           .where((f) => f['profileId'] == p.id && f['date'] == d)
-          .fold<int>(0, (a, f) => a + ((f['kcal'] as num?)?.toInt() ?? 0));
-      waterSum += (local.map('waterLog')[d] as num?)?.toInt() ?? 0;
+          .fold<int>(0, (a, f) => a + (toInt(f['kcal']) ?? 0));
+      waterSum += toInt(local.map('waterLog')[d]) ?? 0;
       final a = local
           .list('activityLog')
           .where((x) => x['profileId'] == p.id && x['date'] == d)
           .firstOrNull;
-      if (a != null) stepsSum += (a['steps'] as num?)?.toInt() ?? 0;
+      if (a != null) stepsSum += toInt(a['steps']) ?? 0;
       for (final s in local
           .list('sleepLog')
           .where((s) => s['profileId'] == p.id && s['date'] == d)) {
-        qSum += (s['quality'] as num?)?.toDouble() ?? 0;
+        qSum += toDouble(s['quality']) ?? 0;
         qN++;
       }
       final sched = todaysMedSchedule(local, p.id, d);
@@ -212,7 +212,7 @@ class _ProgressTabState extends State<ProgressTab> with TabLoader<ProgressTab> {
                       points: wl
                           .map((w) => ChartPoint(
                                 (w['date'] as String).substring(5),
-                                (w['weight'] as num?)?.toDouble(),
+                                toDouble(w['weight']),
                               ))
                           .toList(),
                     ),
@@ -244,7 +244,7 @@ class _ProgressTabState extends State<ProgressTab> with TabLoader<ProgressTab> {
                           .where((_) => h > 0)
                           .map((w) => ChartPoint(
                                 (w['date'] as String).substring(5),
-                                ((w['weight'] as num?)?.toDouble() ?? 0) /
+                                (toDouble(w['weight']) ?? 0) /
                                     ((h / 100) * (h / 100)),
                               ))
                           .toList(),

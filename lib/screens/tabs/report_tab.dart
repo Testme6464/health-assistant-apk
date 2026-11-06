@@ -37,7 +37,7 @@ class _ReportTabState extends State<ReportTab> with TabLoader<ReportTab> {
       ..sort((a, b) => (b['date'] as String).compareTo(a['date'] as String));
     final lastW = weightLogs.isEmpty ? null : weightLogs.first;
     final heightWeight =
-        '${p.heightCm == null ? '—' : _num(p.heightCm!)} cm / ${lastW != null ? '${_num((lastW['weight'] as num?) ?? 0)} kg (${fmtDateMm((lastW['date'] as String?) ?? '')})' : '${p.weightKg == null ? '—' : _num(p.weightKg!)} kg'}';
+        '${p.heightCm == null ? '—' : _num(p.heightCm!)} cm / ${lastW != null ? '${_num(toNum(lastW['weight']) ?? 0)} kg (${fmtDateMm((lastW['date'] as String?) ?? '')})' : '${p.weightKg == null ? '—' : _num(p.weightKg!)} kg'}';
     final ageGender =
         '${p.age ?? '—'} / ${p.gender == 'male' ? 'ကျား' : p.gender == 'female' ? 'မ' : '—'}';
 
@@ -58,14 +58,14 @@ class _ReportTabState extends State<ReportTab> with TabLoader<ReportTab> {
                 f['date'] == d &&
                 f['deleted'] != true,
           )
-          .fold<int>(0, (a, f) => a + ((f['kcal'] as num?)?.toInt() ?? 0));
-      water7 += (local.map('waterLog')[d] as num?)?.toInt() ?? 0;
+          .fold<int>(0, (a, f) => a + (toInt(f['kcal']) ?? 0));
+      water7 += toInt(local.map('waterLog')[d]) ?? 0;
     }
     final avgKcal = (kcal7 / 7).round();
     final avgWater = (water7 / 7).round();
     final settings = local.map('settings');
     final kcalTarget = p.calorieTarget(
-      manualTarget: (settings['calorieTarget'] as num?)?.toInt(),
+      manualTarget: toInt(settings['calorieTarget']),
       manualMode: settings['calorieTargetMode'] == 'manual',
     );
 

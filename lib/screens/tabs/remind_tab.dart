@@ -70,7 +70,7 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
     _waterEnabled = (r['waterEnabled'] as bool?) ?? true;
     _medEnabled = (r['medEnabled'] as bool?) ?? true;
     _sleepEnabled = (r['sleepEnabled'] as bool?) ?? true;
-    _intervalCtrl.text = '${(r['waterInterval'] as num?)?.toInt() ?? 120}';
+    _intervalCtrl.text = '${toInt(r['waterInterval']) ?? 120}';
     _waterStart = (r['waterStart'] as String?) ?? '08:00';
     _waterEnd = (r['waterEnd'] as String?) ?? '21:00';
     _bedtime = (r['bedtime'] as String?) ?? '22:30';
@@ -97,7 +97,7 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
     }
     final r = local.map('reminders');
     final mins = hmToMin(nowHm());
-    final interval = ((r['waterInterval'] as num?)?.toInt() ?? 120);
+    final interval = (toInt(r['waterInterval']) ?? 120);
     final waterStart = (r['waterStart'] as String?) ?? '08:00';
     final waterEnd = (r['waterEnd'] as String?) ?? '21:00';
     final bedtime = (r['bedtime'] as String?) ?? '22:30';
@@ -372,9 +372,9 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
 
     final t = todayStr();
     final waterToday =
-        (local.map('waterLog')[t] as num?)?.toInt() ?? 0;
+        toInt(local.map('waterLog')[t]) ?? 0;
     final waterTarget =
-        (local.map('settings')['waterTargetMl'] as num?)?.toInt() ?? 2000;
+        toInt(local.map('settings')['waterTargetMl']) ?? 2000;
     final sleeps = local
         .list('sleepLog')
         .where((s) => s['profileId'] == p.id && s['deleted'] != true)
@@ -401,9 +401,9 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
     final actKcal = actRec == null
         ? 0
         : activityKcal(
-            steps: (actRec['steps'] as num?)?.toInt() ?? 0,
-            exerciseType: (actRec['exerciseType'] as num?)?.toInt() ?? 1,
-            minutes: (actRec['minutes'] as num?)?.toInt() ?? 0,
+            steps: toInt(actRec['steps']) ?? 0,
+            exerciseType: toInt(actRec['exerciseType']) ?? 1,
+            minutes: toInt(actRec['minutes']) ?? 0,
             weightKg: p.weightKg ?? 60,
           ).total;
     final waterPct =
@@ -720,7 +720,7 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
                     title:
                         '${fmtDateMm((s['date'] as String?) ?? '')} — ${fmtTimeMm((s['bedtime'] as String?) ?? '')} → ${fmtTimeMm((s['wakeTime'] as String?) ?? '')}',
                     subtitle:
-                        'ကြာချိန် ${sleepDuration(s)} · အရည်အသွေး ${'★' * ((s['quality'] as num?)?.toInt() ?? 0)}${'☆' * (5 - ((s['quality'] as num?)?.toInt() ?? 0))}${(s['nightmare'] as bool?) == true ? ' · 😱 အိပ်မက်ဆိုး' : ''}',
+                        'ကြာချိန် ${sleepDuration(s)} · အရည်အသွေး ${'★' * (toInt(s['quality']) ?? 0)}${'☆' * (5 - (toInt(s['quality']) ?? 0))}${(s['nightmare'] as bool?) == true ? ' · 😱 အိပ်မက်ဆိုး' : ''}',
                     onDelete: () async {
                       await local.softDelete('sleepLog', '${s['id']}');
                       refresh();
@@ -747,7 +747,7 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
                   children: [
                     Expanded(
                       child: Text(
-                        'ခြေလှမ်း: ${actRec == null ? 0 : (actRec['steps'] as num?)?.toInt() ?? 0} · မိနစ်: ${actRec == null ? 0 : (actRec['minutes'] as num?)?.toInt() ?? 0} · လောင်ကျွမ်း: ~$actKcal kcal',
+                        'ခြေလှမ်း: ${actRec == null ? 0 : toInt(actRec['steps']) ?? 0} · မိနစ်: ${actRec == null ? 0 : toInt(actRec['minutes']) ?? 0} · လောင်ကျွမ်း: ~$actKcal kcal',
                       ),
                     ),
                     const SizedBox(width: 8),

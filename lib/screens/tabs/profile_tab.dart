@@ -279,7 +279,31 @@ class _ProfileTabState extends State<ProfileTab> with TabLoader<ProfileTab> {
     }
     final p = activeProfile;
     if (p == null) {
-      return const Center(child: Text('—'));
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'Profile မရှိသေးပါ',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'စတင်ဖို့ profile အသစ် တစ်ခု ဖန်တီးပါ',
+                style: TextStyle(color: Colors.grey),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              ElevatedButton(
+                onPressed: _newProfile,
+                child: const Text('👥 Profile အသစ် ဖန်တီးမယ်'),
+              ),
+            ],
+          ),
+        ),
+      );
     }
     if (_initProfileId != p.id) _initFromProfile(p);
     final bmi = p.bmi;

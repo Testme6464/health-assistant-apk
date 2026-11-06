@@ -38,7 +38,7 @@ class _HomeTabState extends State<HomeTab> with TabLoader<HomeTab> {
   int _kcalTarget(HealthProfile p) {
     final settings = local.map('settings');
     final manualMode = settings['calorieTargetMode'] == 'manual';
-    final manualTarget = (settings['calorieTarget'] as num?)?.toInt();
+    final manualTarget = toInt(settings['calorieTarget']);
     return p.calorieTarget(
       manualTarget: manualTarget,
       manualMode: manualMode,
@@ -96,10 +96,10 @@ class _HomeTabState extends State<HomeTab> with TabLoader<HomeTab> {
     final kcalToday = local
         .list('foodLog')
         .where((f) => f['profileId'] == p.id && f['date'] == t)
-        .fold<int>(0, (a, f) => a + ((f['kcal'] as num?)?.toInt() ?? 0));
+        .fold<int>(0, (a, f) => a + (toInt(f['kcal']) ?? 0));
     final settings = local.map('settings');
-    final waterTarget = (settings['waterTargetMl'] as num?)?.toInt() ?? 2000;
-    final waterToday = (local.map('waterLog')[t] as num?)?.toInt() ?? 0;
+    final waterTarget = toInt(settings['waterTargetMl']) ?? 2000;
+    final waterToday = toInt(local.map('waterLog')[t]) ?? 0;
     final medsToday = todaysMedSchedule(local, p.id, t);
     final takenCount = medsToday.where((m) => m.status == 'taken').length;
     final missedCount = medsToday.where((m) => m.status == 'missed').length;
@@ -107,13 +107,13 @@ class _HomeTabState extends State<HomeTab> with TabLoader<HomeTab> {
         .list('activityLog')
         .where((a) => a['profileId'] == p.id && a['date'] == t)
         .firstOrNull;
-    final stepsToday = (act?['steps'] as num?)?.toInt() ?? 0;
+    final stepsToday = toInt(act?['steps']) ?? 0;
     final actKcal = act == null
         ? 0
         : activityKcal(
-            steps: (act['steps'] as num?)?.toInt() ?? 0,
-            exerciseType: (act['exerciseType'] as num?)?.toInt() ?? 1,
-            minutes: (act['minutes'] as num?)?.toInt() ?? 0,
+            steps: toInt(act['steps']) ?? 0,
+            exerciseType: toInt(act['exerciseType']) ?? 1,
+            minutes: toInt(act['minutes']) ?? 0,
             weightKg: p.weightKg ?? 60,
           ).total;
     final wl = local
@@ -297,7 +297,7 @@ class _HomeTabState extends State<HomeTab> with TabLoader<HomeTab> {
                       points: wl14
                           .map((w) => ChartPoint(
                                 (w['date'] as String).substring(5),
-                                (w['weight'] as num?)?.toDouble(),
+                                toDouble(w['weight']),
                               ))
                           .toList(),
                     ),
