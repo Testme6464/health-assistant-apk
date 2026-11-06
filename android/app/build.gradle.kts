@@ -28,7 +28,9 @@ android {
     // standard debug credentials) so every CI build signs with the same key.
     // Its SHA-1 must stay registered in Firebase or Google sign-in breaks.
     signingConfigs {
-        debug {
+        // Note: use getByName("debug") — the bare `debug { }` accessor does
+        // not resolve on the signing-config container in Kotlin DSL.
+        getByName("debug") {
             storeFile = file("debug.keystore")
             storePassword = "android"
             keyAlias = "androiddebugkey"
