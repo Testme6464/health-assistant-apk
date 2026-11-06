@@ -16,6 +16,25 @@ String todayStr() {
   return '${n.year}-$m-$d';
 }
 
+/// Tolerant number parsing for JSON from the web app / Firestore.
+///
+/// The web app stores numeric fields as STRINGS (profile age/height/
+/// weight come from input .value; food kcal and weight-log weight are
+/// strings too), so a strict `(v as num?)` cast throws
+/// "type 'String' is not a subtype of type 'num?' in type cast" and
+/// red-screens the tab. These helpers accept num, numeric String
+/// (trimmed, '' -> null) or null, and never throw.
+num? toNum(dynamic v) {
+  if (v == null) return null;
+  if (v is num) return v;
+  if (v is String) return num.tryParse(v.trim());
+  return null;
+}
+
+int? toInt(dynamic v) => toNum(v)?.toInt();
+
+double? toDouble(dynamic v) => toNum(v)?.toDouble();
+
 /// Health math — identical formulas to the web app.
 double? calcBmi({required double? heightCm, required double? weightKg}) {
   if (heightCm == null || weightKg == null || heightCm <= 0) return null;
@@ -109,10 +128,10 @@ class HealthProfile {
   factory HealthProfile.fromJson(Map<String, dynamic> j) => HealthProfile(
         id: j['id'] as String,
         name: (j['name'] as String?) ?? 'ကျွန်ုပ်',
-        age: (j['age'] as num?)?.toInt(),
+        age: toInt(j['age']),
         gender: (j['gender'] as String?) ?? '',
-        heightCm: (j['height'] as num?)?.toDouble(),
-        weightKg: (j['weight'] as num?)?.toDouble(),
+        heightCm: toDouble(j['height']),
+        weightKg: toDouble(j['weight']),
         bloodType: (j['bloodType'] as String?) ?? '',
         conditions:
             (j['conditions'] as List?)?.map((e) => '$e').toList() ?? [],
@@ -122,7 +141,7 @@ class HealthProfile {
             (j['allergies'] as List?)?.map((e) => '$e').toList() ?? [],
         goal: (j['goal'] as String?) ?? 'maintain',
         periodEnabled: (j['periodEnabled'] as bool?) ?? false,
-        updatedAt: (j['updatedAt'] as num?)?.toInt(),
+        updatedAt: toInt(j['updatedAt']),
       );
 
   double? get bmi => calcBmi(heightCm: heightCm, weightKg: weightKg);
@@ -184,11 +203,11 @@ class FoodEntry {
         date: j['date'] as String,
         time: (j['time'] as String?) ?? '',
         name: (j['name'] as String?) ?? '',
-        kcal: (j['kcal'] as num?)?.toInt() ?? 0,
+        kcal: toInt(j['kcal']) ?? 0,
         amount: (j['amount'] as String?) ?? '',
         source: (j['source'] as String?) ?? '',
         deleted: (j['deleted'] as bool?) ?? false,
-        updatedAt: (j['updatedAt'] as num?)?.toInt(),
+        updatedAt: toInt(j['updatedAt']),
       );
 }
 
@@ -244,15 +263,15 @@ class ActivityEntry {
         id: j['id'] as String,
         profileId: j['profileId'] as String,
         date: j['date'] as String,
-        steps: (j['steps'] as num?)?.toInt() ?? 0,
-        minutes: (j['minutes'] as num?)?.toInt() ?? 0,
-        exerciseType: (j['exerciseType'] as num?)?.toInt() ?? 1,
-        stepsKcal: (j['stepsKcal'] as num?)?.toInt() ?? 0,
-        exKcal: (j['exKcal'] as num?)?.toInt() ?? 0,
-        kcal: (j['kcal'] as num?)?.toInt() ?? 0,
+        steps: toInt(j['steps']) ?? 0,
+        minutes: toInt(j['minutes']) ?? 0,
+        exerciseType: toInt(j['exerciseType']) ?? 1,
+        stepsKcal: toInt(j['stepsKcal']) ?? 0,
+        exKcal: toInt(j['exKcal']) ?? 0,
+        kcal: toInt(j['kcal']) ?? 0,
         source: (j['source'] as String?) ?? 'manual',
         deleted: (j['deleted'] as bool?) ?? false,
-        updatedAt: (j['updatedAt'] as num?)?.toInt(),
+        updatedAt: toInt(j['updatedAt']),
       );
 
   /// Health Connect-shaped view (used by the APK phase later).
@@ -312,9 +331,9 @@ class Med {
         dosage: (j['dosage'] as String?) ?? '',
         times: (j['times'] as List?)?.map((e) => '$e').toList() ?? [],
         reason: (j['reason'] as String?) ?? '',
-        supplyDays: (j['supplyDays'] as num?)?.toInt(),
+        supplyDays: toInt(j['supplyDays']),
         supplyStartDate: (j['supplyStartDate'] as String?) ?? '',
         deleted: (j['deleted'] as bool?) ?? false,
-        updatedAt: (j['updatedAt'] as num?)?.toInt(),
+        updatedAt: toInt(j['updatedAt']),
       );
 }

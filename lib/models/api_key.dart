@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'health_data.dart';
+
 /// A single free API key with health tracking for auto-rotation.
 /// Adapted from VideoTool's ApiKey model (same behaviour, same fields).
 class ApiKey {
@@ -44,8 +46,8 @@ class ApiKey {
         label: j['label'] as String,
         key: j['key'] as String,
         provider: (j['provider'] as String?) ?? 'gemini',
-        failCount: (j['failCount'] as num?)?.toInt() ?? 0,
-        successCount: (j['successCount'] as num?)?.toInt() ?? 0,
+        failCount: toInt(j['failCount']) ?? 0,
+        successCount: toInt(j['successCount']) ?? 0,
         cooldownUntil: j['cooldownUntil'] != null
             ? DateTime.tryParse(j['cooldownUntil'] as String)
             : null,
