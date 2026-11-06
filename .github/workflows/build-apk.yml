@@ -59,12 +59,12 @@ jobs:
             exit 1
           fi
 
-      - name: Build debug APK
+      - name: Build debug APK (split per ABI)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set +e
-          flutter build apk --debug > build.log 2>&1
+          flutter build apk --debug --split-per-abi > build.log 2>&1
           code=$?
           set -e
           if [ $code -ne 0 ]; then
@@ -87,4 +87,4 @@ jobs:
           tag_name: v0.1.0
           name: Health Assistant v0.1.0 (debug)
           body: "Debug APK built automatically from the main branch."
-          files: build/app/outputs/flutter-apk/app-debug.apk
+          files: build/app/outputs/flutter-apk/app-*-debug.apk
