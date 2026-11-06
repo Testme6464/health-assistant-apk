@@ -2,7 +2,18 @@ import 'package:flutter/material.dart';
 
 import '../services/sync_service.dart';
 import 'keys_screen.dart';
-import 'tabs/tab_placeholders.dart';
+import 'tabs/emergency_tab.dart';
+import 'tabs/food_tab.dart';
+import 'tabs/home_tab.dart';
+import 'tabs/meds_tab.dart';
+import 'tabs/period_tab.dart';
+import 'tabs/plan_tab.dart';
+import 'tabs/profile_tab.dart';
+import 'tabs/progress_tab.dart';
+import 'tabs/remind_tab.dart';
+import 'tabs/report_tab.dart';
+import 'tabs/settings_tab.dart';
+import 'tabs/symptom_tab.dart';
 
 /// The 12-tab shell — same order as the web app, same icons and labels.
 /// Bottom bar scrolls horizontally (12 tabs do not fit one screen width),
