@@ -5,6 +5,7 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/foundation.dart';
 
 import 'auth_service.dart';
+import '../models/health_data.dart';
 import 'local_store.dart';
 
 /// Offline-first Firestore sync.
@@ -180,14 +181,14 @@ class SyncService {
         final remote = doc.data();
         remote['id'] = doc.id;
         final i = items.indexWhere((e) => e['id'] == doc.id);
-        final remoteAt = (remote['updatedAt'] as num?)?.toInt() ?? 0;
+        final remoteAt = toInt(remote['updatedAt']) ?? 0;
         if (remote['deleted'] == true) {
           if (i >= 0) items.removeAt(i);
           merged++;
           continue;
         }
         if (i >= 0) {
-          final localAt = (items[i]['updatedAt'] as num?)?.toInt() ?? 0;
+          final localAt = toInt(items[i]['updatedAt']) ?? 0;
           if (remoteAt > localAt) {
             items[i] = remote;
             merged++;
@@ -203,7 +204,7 @@ class SyncService {
           .get(const GetOptions(source: Source.server));
       final data = doc.data();
       if (data == null) return 0;
-      final remoteAt = (data['updatedAt'] as num?)?.toInt() ?? 0;
+      final remoteAt = toInt(data['updatedAt']) ?? 0;
       if (remoteAt > lastSyncMs) {
         final local = _local.map(collection);
         final mergedMap = {...local, ...data};

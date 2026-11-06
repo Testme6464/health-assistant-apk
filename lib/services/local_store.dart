@@ -217,8 +217,8 @@ class LocalStore {
           rec['updatedAt'] ??= now;
           final i = items.indexWhere((e) => e['id'] == rec['id']);
           if (i >= 0) {
-            final oldAt = (items[i]['updatedAt'] as num?)?.toInt() ?? 0;
-            if ((rec['updatedAt'] as num).toInt() >= oldAt) items[i] = rec;
+            final oldAt = toInt(items[i]['updatedAt']) ?? 0;
+            if ((toInt(rec['updatedAt']) ?? 0) >= oldAt) items[i] = rec;
           } else {
             items.add(rec);
           }
