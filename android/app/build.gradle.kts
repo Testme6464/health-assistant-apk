@@ -24,7 +24,23 @@ android {
         versionName = flutter.versionName
     }
 
+    // Stable committed debug keystore (android/app/debug.keystore, PKCS12,
+    // standard debug credentials) so every CI build signs with the same key.
+    // Its SHA-1 must stay registered in Firebase or Google sign-in breaks.
+    signingConfigs {
+        debug {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+            storeType = "PKCS12"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             // TODO: Add your own signing config for the release build.
             // Signing with the debug keys for now, so `flutter run --release` works.
