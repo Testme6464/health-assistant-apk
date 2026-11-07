@@ -4,7 +4,7 @@ import 'package:healthassistant/models/health_data.dart';
 
 void main() {
   test('static data counts match the web app', () {
-    expect(foodDb.length, 60);
+    expect(foodDb.length, 160);
     expect(drugInteractions.length, 30);
     expect(commonSymptoms.length, 18);
     expect(exerciseBurn.length, 10);
