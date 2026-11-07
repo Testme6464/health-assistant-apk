@@ -155,6 +155,18 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
     if (mounted) showToast(context, 'အသံ သိမ်းပြီးပါပြီ ✅');
   }
 
+  /// Send a test notification (fires in 5 seconds) so the user can
+  /// verify on the phone that notifications actually appear and sound.
+  Future<void> _sendTestNotification() async {
+    await NotificationService().sendTestNotification();
+    if (mounted) {
+      showToast(
+        context,
+        'စမ်းသပ်ချက် ပို့ပြီးပါပြီ — ၅ စက္ကန့်အတွင်း ပေါ်လာမယ်',
+      );
+    }
+  }
+
   /// Ask for notification + exact-alarm permission, then refresh status.
   Future<void> _requestNotifPermissions() async {
     await NotificationService().requestNotificationsPermission();
@@ -619,33 +631,39 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
                 const SizedBox(height: 12),
                 const Text('🔔 Notification အသံ'),
                 const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Expanded(child: Text(_soundLabel)),
-                    OutlinedButton(
-                      onPressed: _pickRingtoneChoice,
-                      child: const Text('ရွေးမယ်'),
-                    ),
-                  ],
+                Text(_soundLabel),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: _pickRingtoneChoice,
+                    child: const Text('ရွေးမယ်'),
+                  ),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        _exactAlarms == null
-                            ? 'Notification ခွင့်ပြုချက် စစ်နေသည်…'
-                            : _exactAlarms!
-                                ? '✅ အချိန်မှန် သတိပေးနိုင်ပါတယ်'
-                                : '⚠️ အချိန်မှန် သတိပေးဖို့ "Alarms & reminders" ခွင့်ပြုချက် လိုပါတယ်',
-                        style: const TextStyle(fontSize: 13),
-                      ),
-                    ),
-                    OutlinedButton(
-                      onPressed: _requestNotifPermissions,
-                      child: const Text('ခွင့်ပြုချက် တောင်းမယ်'),
-                    ),
-                  ],
+                Text(
+                  _exactAlarms == null
+                      ? 'Notification ခွင့်ပြုချက် စစ်နေသည်…'
+                      : _exactAlarms!
+                          ? '✅ အချိန်မှန် သတိပေးနိုင်ပါတယ်'
+                          : '⚠️ အချိန်မှန် သတိပေးဖို့ "Alarms & reminders" ခွင့်ပြုချက် လိုပါတယ်',
+                  style: const TextStyle(fontSize: 13),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: _requestNotifPermissions,
+                    child: const Text('ခွင့်ပြုချက် တောင်းမယ်'),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: _sendTestNotification,
+                    child: const Text('🔔 စမ်းသပ်မယ် (၅ စက္ကန့်အတွင်း)'),
+                  ),
                 ),
                 const SizedBox(height: 12),
                 SizedBox(
