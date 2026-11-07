@@ -39,9 +39,7 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
   String _waterEnd = '21:00';
   String _bedtime = '22:30';
 
-  // ---- notification sound + exact-alarm permission state ----
-  String _soundChoice = 'default';
-  String _soundName = '';
+  // ---- exact-alarm permission state ----
   bool? _exactAlarms;
 
   // ---- meal-plan form state ----
@@ -84,75 +82,7 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
     _waterStart = ws.isEmpty ? '08:00' : ws;
     _waterEnd = we.isEmpty ? '21:00' : we;
     _bedtime = bt.isEmpty ? '22:30' : bt;
-    final sc = strVal(r['notificationSound']);
-    _soundChoice = sc.isEmpty ? 'default' : sc;
-    _soundName = strVal(r['notificationSoundName']);
     _settingsInit = true;
-  }
-
-  String get _soundLabel {
-    switch (_soundChoice) {
-      case 'silent':
-        return 'Silent (အသံမပါ)';
-      case 'custom':
-        return _soundName.isEmpty ? 'Custom file' : _soundName;
-      default:
-        return 'Default (စနစ်အသံ)';
-    }
-  }
-
-  /// Ringtone chooser: Default / Silent / pick an audio file.
-  /// Persists the choice in the reminders map and re-schedules.
-  Future<void> _pickRingtoneChoice() async {
-    final choice = await showDialog<String>(
-      context: context,
-      builder: (ctx) => SimpleDialog(
-        title: const Text('🔔 Notification အသံ'),
-        children: [
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(ctx, 'default'),
-            child: const Text('Default — စနစ်အသံ'),
-          ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(ctx, 'silent'),
-            child: const Text('Silent — အသံမပါ'),
-          ),
-          SimpleDialogOption(
-            onPressed: () => Navigator.pop(ctx, 'custom'),
-            child: const Text('Custom file — ကိုယ်ကြိုက်တဲ့ အသံဖိုင် ရွေးမယ်'),
-          ),
-        ],
-      ),
-    );
-    if (choice == null || !mounted) return;
-    final r = local.map('reminders');
-    if (choice == 'custom') {
-      final path = await NotificationService().pickAndStoreRingtone();
-      if (path == null) {
-        if (mounted) showToast(context, 'ဖိုင်မရွေးခဲ့ပါ');
-        return;
-      }
-      r['notificationSound'] = 'custom';
-      r['notificationSoundPath'] = path;
-      r['notificationSoundName'] = path.split('/').last;
-      setState(() {
-        _soundChoice = 'custom';
-        _soundName = path.split('/').last;
-      });
-    } else {
-      r['notificationSound'] = choice;
-      r['notificationSoundPath'] = '';
-      r['notificationSoundName'] = '';
-      setState(() {
-        _soundChoice = choice;
-        _soundName = '';
-      });
-    }
-    local.db['reminders'] = r;
-    await local.markDirty('reminders');
-    await local.save();
-    await NotificationService().scheduleAll();
-    if (mounted) showToast(context, 'အသံ သိမ်းပြီးပါပြီ ✅');
   }
 
   /// Send a test notification (fires in 5 seconds) so the user can
@@ -291,9 +221,10 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
   Future<void> _saveReminders() async {
     final r = local.map('reminders');
     r['waterEnabled'] = _waterEnabled;
-    // Web: Math.max(30, parseInt(value, 10) || 120).
+    // Minimum 1 minute (was clamped to 30, inherited from the web app,
+    // which silently turned a 1-2 minute test interval into 30).
     final parsed = int.tryParse(_intervalCtrl.text.trim()) ?? 120;
-    r['waterInterval'] = parsed < 30 ? 30 : parsed;
+    r['waterInterval'] = parsed < 1 ? 1 : parsed;
     r['waterStart'] = _waterStart.isEmpty ? '08:00' : _waterStart;
     r['waterEnd'] = _waterEnd.isEmpty ? '21:00' : _waterEnd;
     r['medEnabled'] = _medEnabled;
@@ -534,16 +465,6 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        // Info box.
-        Card(
-          color: AppTheme.amberBg,
-          child: const Padding(
-            padding: EdgeInsets.all(16),
-            child: Text(
-              'ℹ️ သတိပေးချက်များက app ပိတ်ထားရင်တောင် system notification အနေနဲ့ လာပါမယ်။',
-            ),
-          ),
-        ),
         // Reminder settings.
         Card(
           child: Padding(
@@ -629,18 +550,6 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
                   },
                 ),
                 const SizedBox(height: 12),
-                const Text('🔔 Notification အသံ'),
-                const SizedBox(height: 4),
-                Text(_soundLabel),
-                const SizedBox(height: 8),
-                SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton(
-                    onPressed: _pickRingtoneChoice,
-                    child: const Text('ရွေးမယ်'),
-                  ),
-                ),
-                const SizedBox(height: 8),
                 Text(
                   _exactAlarms == null
                       ? 'Notification ခွင့်ပြုချက် စစ်နေသည်…'
