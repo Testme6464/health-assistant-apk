@@ -1,7 +1,7 @@
 name: healthassistant
 description: "Health Assistant — Burmese health tracker with Firebase sync (offline-first)."
 publish_to: "none"
-version: 1.0.6+7
+version: 1.0.7+8
 
 environment:
   sdk: ^3.9.0
@@ -48,3 +48,4 @@ flutter:
         - asset: assets/fonts/NotoSansMyanmar-Regular.ttf
   assets:
     - assets/fonts/NotoSansMyanmar-Regular.ttf
+    - assets/sounds/energetic_rock.mp3
