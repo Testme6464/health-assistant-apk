@@ -9,6 +9,13 @@
 // Merge rule for today: Health Connect steps win when larger (the phone
 // pedometer counts all day); a manual minutes/exercise entry the user
 // typed keeps its minutes and type, only its steps are topped up.
+//
+// If the in-app permission prompt does not appear (some devices), the
+// Settings card offers "Health Connect settings ဖွင့်မယ်" which opens
+// the system Health Connect App-permissions screen so the user can
+// grant the permission manually.
+import 'package:android_intent_plus/android_intent.dart';
+import 'package:flutter/services.dart';
 import 'package:health/health.dart';
 
 import '../data/static_data.dart';
@@ -90,13 +97,55 @@ class HealthConnectService {
   }
 
   /// Ask the user for READ permission (steps, workouts, calories).
-  /// Returns true when granted.
+  /// Tries the direct MainActivity channel first (official Health Connect
+  /// API — this is what makes the app appear in Health Connect's App
+  /// permissions list), and falls back to the `health` plugin when the
+  /// direct channel is unavailable. Returns true when granted (verified
+  /// with hasPermissions afterwards, because the prompt can close
+  /// without granting).
   Future<bool> requestPermissions() async {
     try {
-      return await _health.requestAuthorization(_types);
+      const channel = MethodChannel('health_connect_direct');
+      final granted = await channel.invokeMethod<bool>('requestPermissions');
+      if (granted == true) return true;
+      // Direct request did not grant — verify before falling back, in
+      // case the user granted it in the system screen meanwhile.
+      if (await _health.hasPermissions(_types) == true) return true;
+    } catch (_) {
+      // Direct channel unavailable (e.g. older build) — fall through.
+    }
+    try {
+      await _health.requestAuthorization(_types);
+      final granted = await _health.hasPermissions(_types);
+      return granted == true;
     } catch (_) {
       return false;
     }
+  }
+
+  /// Open the system Health Connect settings (App permissions screen) so
+  /// the user can grant the permission manually when the in-app prompt
+  /// does not appear. Tries the system settings intent first (Android 14+),
+  /// then launching the Health Connect app itself (Android 13 and below,
+  /// where it is a separate app), then the Play Store page.
+  Future<void> openHealthConnectSettings() async {
+    const settingsAction = 'android.settings.HEALTH_CONNECT_SETTINGS';
+    try {
+      await const AndroidIntent(action: settingsAction).launch();
+      return;
+    } catch (_) {
+      // Fall through to the next option.
+    }
+    try {
+      await const AndroidIntent(
+        action: 'android.intent.action.MAIN',
+        package: 'com.google.android.apps.healthdata',
+      ).launch();
+      return;
+    } catch (_) {
+      // Fall through to the Play Store page.
+    }
+    await installApp();
   }
 
   /// Open the Play Store page for the Health Connect app.
