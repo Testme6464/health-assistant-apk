@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Keep the bundled notification sound. It is only referenced by its
+     string name at runtime (RawResourceAndroidNotificationSound), so
+     the resource shrinker would otherwise strip it from the APK. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@raw/energetic_rock" />
