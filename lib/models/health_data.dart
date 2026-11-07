@@ -35,6 +35,46 @@ int? toInt(dynamic v) => toNum(v)?.toInt();
 
 double? toDouble(dynamic v) => toNum(v)?.toDouble();
 
+/// Tolerant string coercion for JSON from the web app / Firestore.
+///
+/// The same class of bug as the string-number crash (a14ea84): a field the
+/// code casts with `as String` / `as List` / `as bool` can arrive in a
+/// different shape (a med's `times` as a comma string, a `medLog` day as a
+/// string, a reminder flag as the string "true", a log date as null or a
+/// number) and a strict cast throws, blanking the whole tab. These
+/// helpers never throw; corrupt entries degrade to empty/default instead.
+String strVal(dynamic v) {
+  if (v == null) return '';
+  if (v is String) return v;
+  return '$v';
+}
+
+/// List of strings from a List, a comma-separated String, or anything else.
+List<String> strList(dynamic v) {
+  if (v is List) return v.map((e) => '$e').toList();
+  if (v is String) {
+    return v
+        .split(',')
+        .map((e) => e.trim())
+        .where((e) => e.isNotEmpty)
+        .toList();
+  }
+  return [];
+}
+
+/// Boolean from a bool, a "true"/"false"/"1"/"0" String, or a number.
+bool toBool(dynamic v, bool fallback) {
+  if (v is bool) return v;
+  if (v is String) {
+    final s = v.trim().toLowerCase();
+    if (s == 'true' || s == '1') return true;
+    if (s == 'false' || s == '0') return false;
+    return fallback;
+  }
+  if (v is num) return v != 0;
+  return fallback;
+}
+
 /// Health math — identical formulas to the web app.
 double? calcBmi({required double? heightCm, required double? weightKg}) {
   if (heightCm == null || weightKg == null || heightCm <= 0) return null;
