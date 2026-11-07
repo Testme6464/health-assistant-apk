@@ -187,6 +187,11 @@ class LocalStore {
     }
   }
 
+  /// Called whenever a collection is marked dirty (user data changed).
+  /// SyncService sets this to schedule a debounced auto-sync. Null-safe:
+  /// no-op until SyncService starts.
+  void Function()? onDirty;
+
   Future<void> markDirty(String collection) async {
     final prefs = await SharedPreferences.getInstance();
     final dirty = prefs.getStringList(_dirtyKey) ?? [];
@@ -194,6 +199,7 @@ class LocalStore {
       dirty.add(collection);
       await prefs.setStringList(_dirtyKey, dirty);
     }
+    onDirty?.call();
   }
 
   Future<List<String>> get dirtyCollections async {

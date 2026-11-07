@@ -26,7 +26,8 @@ import 'local_store.dart';
 /// 3. [syncNow] pushes dirty collections, then pulls every collection's
 ///    changes newer than [LocalStore.lastSyncAt]. Newer `updatedAt` wins.
 /// 4. Sync runs automatically on app start, when connectivity returns,
-///    and when the user taps "Sync now" in Settings.
+///    a few seconds after any local change (debounced auto-sync via
+///    [LocalStore.onDirty]), and when the user taps "Sync now" in Settings.
 /// 5. Firestore's own offline persistence is also on, so even a direct
 ///    Firestore read works while offline — but the local cache is the
 ///    source of truth for the UI.
@@ -47,6 +48,7 @@ class SyncService {
 
   StreamSubscription<List<ConnectivityResult>>? _connSub;
   bool _syncing = false;
+  Timer? _debounceTimer;
 
   static const List<String> listCollections = [
     'profiles',
@@ -70,8 +72,12 @@ class SyncService {
   ];
 
   /// Start listening for connectivity changes; run an initial sync.
+  /// Also wires auto-sync: every local write (markDirty) schedules a
+  /// debounced sync a few seconds later, so changes reach the server
+  /// without the user tapping "Sync now".
   Future<void> start() async {
     await _local.load();
+    _local.onDirty = scheduleSync;
     _connSub?.cancel();
     _connSub = Connectivity().onConnectivityChanged.listen((results) {
       if (results.any((r) => r != ConnectivityResult.none)) {
@@ -83,6 +89,21 @@ class SyncService {
 
   void dispose() {
     _connSub?.cancel();
+    _debounceTimer?.cancel();
+    _local.onDirty = null;
+  }
+
+  /// Schedule a sync a few seconds after the last local change. Rapid
+  /// edits coalesce into one sync. Skipped while offline — the
+  /// connectivity listener syncs when the network returns.
+  void scheduleSync() {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(seconds: 3), () async {
+      final conn = await Connectivity().checkConnectivity();
+      if (conn.any((r) => r != ConnectivityResult.none)) {
+        unawaited(syncNow());
+      }
+    });
   }
 
   CollectionReference<Map<String, dynamic>> _col(String uid, String name) =>
