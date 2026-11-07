@@ -127,8 +127,9 @@ class _SettingsTabState extends State<SettingsTab> with TabLoader<SettingsTab> {
     if (!loaded) return const Center(child: CircularProgressIndicator());
     final user = AuthService().currentUser;
     final settings = local.map('settings');
+    final modelRaw = strVal(settings['geminiModel']);
     final model =
-        (settings['geminiModel'] as String?) ?? GeminiService.defaultModel;
+        modelRaw.isEmpty ? GeminiService.defaultModel : modelRaw;
     final keyCount = KeyStore().keys.length;
     return ListView(
       padding: const EdgeInsets.all(16),
@@ -317,7 +318,7 @@ class _SettingsTabState extends State<SettingsTab> with TabLoader<SettingsTab> {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'App version 0.1.0 (stage 2)။',
+                  'App version 1.0.0 (release)။',
                   style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ],

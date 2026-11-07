@@ -140,7 +140,8 @@ class _ProgressTabState extends State<ProgressTab> with TabLoader<ProgressTab> {
         .list('weightLog')
         .where((w) => w['profileId'] == p.id)
         .toList()
-      ..sort((a, b) => (a['date'] as String).compareTo(b['date'] as String));
+      ..sort((a, b) =>
+          strVal(a['date']).compareTo(strVal(b['date'])));
     final h = p.heightCm ?? 0;
 
     // 7-day summary (same formulas as renderProgress).
@@ -210,10 +211,13 @@ class _ProgressTabState extends State<ProgressTab> with TabLoader<ProgressTab> {
                       label: 'ကိုယ်အလေးချိန် (kg)',
                       color: const Color(0xFF1F6FB2),
                       points: wl
-                          .map((w) => ChartPoint(
-                                (w['date'] as String).substring(5),
-                                toDouble(w['weight']),
-                              ))
+                          .map((w) {
+                            final d = strVal(w['date']);
+                            return ChartPoint(
+                              d.length >= 5 ? d.substring(5) : d,
+                              toDouble(w['weight']),
+                            );
+                          })
                           .toList(),
                     ),
                   ],
@@ -242,11 +246,14 @@ class _ProgressTabState extends State<ProgressTab> with TabLoader<ProgressTab> {
                       color: const Color(0xFF1F6FB2),
                       points: wl
                           .where((_) => h > 0)
-                          .map((w) => ChartPoint(
-                                (w['date'] as String).substring(5),
-                                (toDouble(w['weight']) ?? 0) /
-                                    ((h / 100) * (h / 100)),
-                              ))
+                          .map((w) {
+                            final d = strVal(w['date']);
+                            return ChartPoint(
+                              d.length >= 5 ? d.substring(5) : d,
+                              (toDouble(w['weight']) ?? 0) /
+                                  ((h / 100) * (h / 100)),
+                            );
+                          })
                           .toList(),
                     ),
                   ],

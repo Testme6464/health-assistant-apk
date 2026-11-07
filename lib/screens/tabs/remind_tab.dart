@@ -67,13 +67,18 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
 
   void _initSettingsFromDb() {
     final r = local.map('reminders');
-    _waterEnabled = (r['waterEnabled'] as bool?) ?? true;
-    _medEnabled = (r['medEnabled'] as bool?) ?? true;
-    _sleepEnabled = (r['sleepEnabled'] as bool?) ?? true;
+    // Tolerant reads: flags stored as the String "true" (or any other
+    // non-bool shape) used to throw `as bool?` here and blank the tab.
+    _waterEnabled = toBool(r['waterEnabled'], true);
+    _medEnabled = toBool(r['medEnabled'], true);
+    _sleepEnabled = toBool(r['sleepEnabled'], true);
     _intervalCtrl.text = '${toInt(r['waterInterval']) ?? 120}';
-    _waterStart = (r['waterStart'] as String?) ?? '08:00';
-    _waterEnd = (r['waterEnd'] as String?) ?? '21:00';
-    _bedtime = (r['bedtime'] as String?) ?? '22:30';
+    final ws = strVal(r['waterStart']);
+    final we = strVal(r['waterEnd']);
+    final bt = strVal(r['bedtime']);
+    _waterStart = ws.isEmpty ? '08:00' : ws;
+    _waterEnd = we.isEmpty ? '21:00' : we;
+    _bedtime = bt.isEmpty ? '22:30' : bt;
     _settingsInit = true;
   }
 
@@ -98,18 +103,22 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
     final r = local.map('reminders');
     final mins = hmToMin(nowHm());
     final interval = (toInt(r['waterInterval']) ?? 120);
-    final waterStart = (r['waterStart'] as String?) ?? '08:00';
-    final waterEnd = (r['waterEnd'] as String?) ?? '21:00';
-    final bedtime = (r['bedtime'] as String?) ?? '22:30';
+    final waterStart = strVal(r['waterStart']).isEmpty
+        ? '08:00'
+        : strVal(r['waterStart']);
+    final waterEnd =
+        strVal(r['waterEnd']).isEmpty ? '21:00' : strVal(r['waterEnd']);
+    final bedtime =
+        strVal(r['bedtime']).isEmpty ? '22:30' : strVal(r['bedtime']);
 
     // Meds due within ±2 min and not yet taken.
-    if ((r['medEnabled'] as bool?) ?? true) {
+    if (toBool(r['medEnabled'], true)) {
       for (final dose in todaysMedSchedule(local, p.id, t)) {
         final k = "med_${dose.med['id']}_${dose.time}";
         if (!_fired.contains(k) &&
             (mins - hmToMin(dose.time)).abs() <= 2 &&
             dose.status != 'taken') {
-          final dosage = (dose.med['dosage'] as String?) ?? '';
+          final dosage = strVal(dose.med['dosage']);
           _fireNotif(
             '💊 ဆေးသောက်ချိန်',
             "${dose.med['name']}${dosage.isNotEmpty ? ' ($dosage)' : ''} သောက်ဖို့ အချိန်ရောက်ပါပြီ",
@@ -119,7 +128,7 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
       }
     }
     // Water interval tick inside the enabled window.
-    if ((r['waterEnabled'] as bool?) ?? true) {
+    if (toBool(r['waterEnabled'], true)) {
       if (interval > 0) {
         final k = 'water_${mins ~/ interval}';
         if (!_fired.contains(k) &&
@@ -132,7 +141,7 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
       }
     }
     // Bedtime within ±2 min.
-    if ((r['sleepEnabled'] as bool?) ?? true) {
+    if (toBool(r['sleepEnabled'], true)) {
       const kPrefix = 'sleep_';
       final k = '$kPrefix$t';
       if (!_fired.contains(k) && (mins - hmToMin(bedtime)).abs() <= 2) {
@@ -149,7 +158,7 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
     )) {
       final k = "meal_${m['id']}";
       if (!_fired.contains(k) &&
-          (mins - hmToMin((m['time'] as String?) ?? '')).abs() <= 2) {
+          (mins - hmToMin(strVal(m['time']))).abs() <= 2) {
         _fireNotif(
           '🍽️ အစားအသောက် အချိန်ရောက်ပါပြီ',
           "${m['what']} စားဖို့ အချိန်ရောက်ပါပြီ",
@@ -233,7 +242,8 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
     if (p == null) return;
     final r = local.map('reminders');
     var date = todayStr();
-    var bed = (r['bedtime'] as String?) ?? '22:30';
+    final bedRaw = strVal(r['bedtime']);
+    var bed = bedRaw.isEmpty ? '22:30' : bedRaw;
     var wake = '06:00';
     var quality = 3;
     var nightmare = false;
@@ -379,7 +389,8 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
         .list('sleepLog')
         .where((s) => s['profileId'] == p.id && s['deleted'] != true)
         .toList()
-      ..sort((a, b) => (b['date'] as String).compareTo(a['date'] as String));
+      ..sort((a, b) =>
+          strVal(b['date']).compareTo(strVal(a['date'])));
     final last7Sleeps = sleeps.take(7).toList();
     final mealPlans = local
         .list('mealPlans')
@@ -387,7 +398,7 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
           (m) =>
               m['profileId'] == p.id &&
               m['deleted'] != true &&
-              (m['date'] as String? ?? '').compareTo(t) >= 0,
+              strVal(m['date']).compareTo(t) >= 0,
         )
         .toList()
       ..sort(
@@ -605,7 +616,7 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
                   _ListRow(
                     title: '${m['what']}',
                     subtitle:
-                        '${fmtDateMm((m['date'] as String?) ?? '')} · ${fmtTimeMm((m['time'] as String?) ?? '')}',
+                        '${fmtDateMm(strVal(m['date']))} · ${fmtTimeMm(strVal(m['time']))}',
                     onDelete: () async {
                       await local.softDelete(
                         'mealPlans',
@@ -718,9 +729,9 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
                 for (final s in last7Sleeps)
                   _ListRow(
                     title:
-                        '${fmtDateMm((s['date'] as String?) ?? '')} — ${fmtTimeMm((s['bedtime'] as String?) ?? '')} → ${fmtTimeMm((s['wakeTime'] as String?) ?? '')}',
+                        '${fmtDateMm(strVal(s['date']))} — ${fmtTimeMm(strVal(s['bedtime']))} → ${fmtTimeMm(strVal(s['wakeTime']))}',
                     subtitle:
-                        'ကြာချိန် ${sleepDuration(s)} · အရည်အသွေး ${'★' * (toInt(s['quality']) ?? 0)}${'☆' * (5 - (toInt(s['quality']) ?? 0))}${(s['nightmare'] as bool?) == true ? ' · 😱 အိပ်မက်ဆိုး' : ''}',
+                        'ကြာချိန် ${sleepDuration(s)} · အရည်အသွေး ${'★' * (toInt(s['quality']) ?? 0)}${'☆' * (5 - (toInt(s['quality']) ?? 0))}${toBool(s['nightmare'], false) ? ' · 😱 အိပ်မက်ဆိုး' : ''}',
                     onDelete: () async {
                       await local.softDelete('sleepLog', '${s['id']}');
                       refresh();

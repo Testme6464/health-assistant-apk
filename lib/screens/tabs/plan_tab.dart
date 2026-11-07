@@ -60,8 +60,9 @@ class _PlanTabState extends State<PlanTab> with TabLoader<PlanTab> {
     });
     try {
       final settings = local.map('settings');
+      final modelRaw = strVal(settings['geminiModel']);
       final model =
-          (settings['geminiModel'] as String?) ?? GeminiService.defaultModel;
+          modelRaw.isEmpty ? GeminiService.defaultModel : modelRaw;
       final gemini = GeminiService(KeyStore(), model: model);
       final bmi = p.bmi;
       final meds = local

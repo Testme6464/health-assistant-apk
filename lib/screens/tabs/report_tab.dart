@@ -123,11 +123,10 @@ class _ReportTabState extends State<ReportTab> with TabLoader<ReportTab> {
       b.writeln('မရှိပါ');
     } else {
       for (final m in d.meds) {
-        final times = ((m['times'] as List?) ?? [])
-            .map((e) => fmtTimeMm('$e'))
-            .join(', ');
+        final times =
+            medTimes(m).map((e) => fmtTimeMm(e)).join(', ');
         b.writeln(
-          "- ${m['name']} — ${(m['dosage'] as String?)?.isNotEmpty == true ? m['dosage'] : '—'} — $times — ${(m['reason'] as String?)?.isNotEmpty == true ? m['reason'] : '—'}",
+          "- ${m['name']} — ${strVal(m['dosage']).isNotEmpty ? m['dosage'] : '—'} — $times — ${strVal(m['reason']).isNotEmpty ? m['reason'] : '—'}",
         );
       }
     }
@@ -297,17 +296,15 @@ class _ReportTabState extends State<ReportTab> with TabLoader<ReportTab> {
                           children: [
                             _Cell('${m['name']}'),
                             _Cell(
-                              (m['dosage'] as String?)?.isNotEmpty == true
+                              strVal(m['dosage']).isNotEmpty
                                   ? '${m['dosage']}'
                                   : '—',
                             ),
                             _Cell(
-                              ((m['times'] as List?) ?? [])
-                                  .map((e) => fmtTimeMm('$e'))
-                                  .join(', '),
+                              medTimes(m).map((e) => fmtTimeMm(e)).join(', '),
                             ),
                             _Cell(
-                              (m['reason'] as String?)?.isNotEmpty == true
+                              strVal(m['reason']).isNotEmpty
                                   ? '${m['reason']}'
                                   : '—',
                             ),

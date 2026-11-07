@@ -56,8 +56,9 @@ class _HomeTabState extends State<HomeTab> with TabLoader<HomeTab> {
     setState(() => _aiBusy = true);
     try {
       final settings = local.map('settings');
+      final modelRaw = strVal(settings['geminiModel']);
       final model =
-          (settings['geminiModel'] as String?) ?? GeminiService.defaultModel;
+          modelRaw.isEmpty ? GeminiService.defaultModel : modelRaw;
       final gemini = GeminiService(KeyStore(), model: model);
       // Exact system + user prompt strings from renderHome in app.js.
       // GeminiService takes one prompt, so they are joined with a blank line.
@@ -120,7 +121,8 @@ class _HomeTabState extends State<HomeTab> with TabLoader<HomeTab> {
         .list('weightLog')
         .where((w) => w['profileId'] == p.id)
         .toList()
-      ..sort((a, b) => (a['date'] as String).compareTo(b['date'] as String));
+      ..sort((a, b) =>
+          strVal(a['date']).compareTo(strVal(b['date'])));
     final wl14 = wl.length > 14 ? wl.sublist(wl.length - 14) : wl;
     final kcalPct = math.min(100, (kcalToday / kcalTarget * 100).round());
     final waterPct = math.min(100, (waterToday / waterTarget * 100).round());
@@ -295,10 +297,13 @@ class _HomeTabState extends State<HomeTab> with TabLoader<HomeTab> {
                       label: 'kg',
                       color: const Color(0xFF1F6FB2),
                       points: wl14
-                          .map((w) => ChartPoint(
-                                (w['date'] as String).substring(5),
-                                toDouble(w['weight']),
-                              ))
+                          .map((w) {
+                            final d = strVal(w['date']);
+                            return ChartPoint(
+                              d.length >= 5 ? d.substring(5) : d,
+                              toDouble(w['weight']),
+                            );
+                          })
                           .toList(),
                     ),
                   ],

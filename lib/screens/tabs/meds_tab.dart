@@ -62,10 +62,10 @@ class _MedsTabState extends State<MedsTab> with TabLoader<MedsTab> {
     final ok = await confirmDialog(
       context,
       'ဒီဆေးကို ဖျက်မှာလား?',
-      (m['name'] as String?) ?? '',
+      strVal(m['name']),
     );
     if (!ok) return;
-    await local.softDelete('meds', m['id'] as String);
+    await local.softDelete('meds', strVal(m['id']));
     _clearInteract();
     refresh();
   }
@@ -75,22 +75,20 @@ class _MedsTabState extends State<MedsTab> with TabLoader<MedsTab> {
     if (p == null) return;
     final isEdit = med != null;
     final nameCtrl =
-        TextEditingController(text: (med?['name'] as String?) ?? '');
+        TextEditingController(text: strVal(med?['name']));
     final dosageCtrl =
-        TextEditingController(text: (med?['dosage'] as String?) ?? '');
+        TextEditingController(text: strVal(med?['dosage']));
     final timesCtrl = TextEditingController(
-      text: med != null
-          ? ((med['times'] as List?)?.map((e) => '$e').join(', ') ?? '')
-          : '08:00, 20:00',
+      text: med != null ? medTimes(med).join(', ') : '08:00, 20:00',
     );
     final reasonCtrl =
-        TextEditingController(text: (med?['reason'] as String?) ?? '');
+        TextEditingController(text: strVal(med?['reason']));
     final supplyCtrl = TextEditingController(
       text: med?['supplyDays'] == null ? '' : '${med?['supplyDays']}',
     );
     final supplyStartCtrl = TextEditingController(
-      text: (med?['supplyStartDate'] as String?)?.isNotEmpty == true
-          ? (med!['supplyStartDate'] as String)
+      text: strVal(med?['supplyStartDate']).isNotEmpty
+          ? strVal(med!['supplyStartDate'])
           : todayStr(),
     );
     final saved = await showDialog<bool>(
@@ -221,7 +219,7 @@ class _MedsTabState extends State<MedsTab> with TabLoader<MedsTab> {
     }
     final supplyDays = int.tryParse(supplyCtrl.text.trim());
     final data = <String, dynamic>{
-      'id': med?['id'] as String? ?? newId(),
+      'id': med?['id'] == null ? newId() : strVal(med!['id']),
       'profileId': p.id,
       'name': name,
       'dosage': dosageCtrl.text.trim(),
@@ -245,7 +243,7 @@ class _MedsTabState extends State<MedsTab> with TabLoader<MedsTab> {
   }
 
   void _checkLocal() {
-    final names = _meds.map((m) => (m['name'] as String?) ?? '').toList();
+    final names = _meds.map((m) => strVal(m['name'])).toList();
     if (names.length < 2) {
       setState(() => _interactMode = 'warn');
       return;
@@ -273,11 +271,12 @@ class _MedsTabState extends State<MedsTab> with TabLoader<MedsTab> {
     try {
       final list = meds
           .map((m) =>
-              '${m['name']}${(m['dosage'] as String?)?.isNotEmpty == true ? ' (${m['dosage']})' : ''}')
+              '${m['name']}${strVal(m['dosage']).isNotEmpty ? ' (${m['dosage']})' : ''}')
           .join(', ');
       final settings = local.map('settings');
+      final modelRaw = strVal(settings['geminiModel']);
       final model =
-          (settings['geminiModel'] as String?) ?? GeminiService.defaultModel;
+          modelRaw.isEmpty ? GeminiService.defaultModel : modelRaw;
       final gemini = GeminiService(KeyStore(), model: model);
       final ans = await gemini.generate(
         'You are a pharmacy assistant. Reply in Burmese (Myanmar script). List potential drug-drug interactions, each with severity (ပြင်းထန်/အလယ်အလတ်/နည်း) and a one-line explanation. End with: ဆေးမပြောင်းမီ ဆရာဝန်နဲ့ တိုင်ပင်ပါ။ This is informational only, not medical advice.\n\n'
@@ -602,12 +601,12 @@ class _DoseRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  (dose.med['name'] as String?) ?? '',
+                  strVal(dose.med['name']),
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
-                if ((dose.med['dosage'] as String?)?.isNotEmpty == true)
+                if (strVal(dose.med['dosage']).isNotEmpty)
                   Text(
-                    dose.med['dosage'] as String,
+                    strVal(dose.med['dosage']),
                     style: const TextStyle(fontSize: 12, color: Colors.grey),
                   ),
               ],
@@ -655,13 +654,13 @@ class _MedRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final parts = <String>[];
-    if ((med['dosage'] as String?)?.isNotEmpty == true) {
-      parts.add(med['dosage'] as String);
+    if (strVal(med['dosage']).isNotEmpty) {
+      parts.add(strVal(med['dosage']));
     }
-    final times = (med['times'] as List?)?.map((e) => fmtTimeMm('$e')).toList() ?? [];
+    final times = medTimes(med).map(fmtTimeMm).toList();
     if (times.isNotEmpty) parts.add(times.join(', '));
-    if ((med['reason'] as String?)?.isNotEmpty == true) {
-      parts.add(med['reason'] as String);
+    if (strVal(med['reason']).isNotEmpty) {
+      parts.add(strVal(med['reason']));
     }
     final left = medSupplyLeft(med);
     if (left != null) parts.add('ကျန် $left ရက်');
@@ -675,7 +674,7 @@ class _MedRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  (med['name'] as String?) ?? '',
+                  strVal(med['name']),
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 if (parts.isNotEmpty)

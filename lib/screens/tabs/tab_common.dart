@@ -94,11 +94,17 @@ String fmtDate(DateTime d) =>
     '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
 
 /// '2026-11-06' -> '6 နိုဝင်ဘာ 2026' (web: fmtDateMm).
+/// Never throws: a malformed date string is returned as-is.
 String fmtDateMm(String dateStr) {
   if (dateStr.isEmpty) return '';
-  final p = dateStr.split('-');
-  final day = p[2].replaceFirst(RegExp(r'^0'), '');
-  return '$day ${mmMonths[int.parse(p[1]) - 1]} ${p[0]}';
+  try {
+    final p = dateStr.split('-');
+    if (p.length < 3) return dateStr;
+    final day = p[2].replaceFirst(RegExp(r'^0'), '');
+    return '$day ${mmMonths[int.parse(p[1]) - 1]} ${p[0]}';
+  } catch (_) {
+    return dateStr;
+  }
 }
 
 String nowHm() {
@@ -106,9 +112,14 @@ String nowHm() {
   return '${n.hour.toString().padLeft(2, '0')}:${n.minute.toString().padLeft(2, '0')}';
 }
 
+/// 'HH:mm' -> minutes since midnight. Never throws: a missing,
+/// empty or non-numeric time reads as 00:00 instead of crashing the
+/// caller (Reminders checker, sleep duration, meal-plan times).
 int hmToMin(String hm) {
   final p = hm.split(':');
-  return int.parse(p[0]) * 60 + (int.tryParse(p.length > 1 ? p[1] : '0') ?? 0);
+  final h = int.tryParse(p[0].trim()) ?? 0;
+  final m = p.length > 1 ? (int.tryParse(p[1].trim()) ?? 0) : 0;
+  return h * 60 + m;
 }
 
 String minToHm(int m) {
@@ -120,10 +131,12 @@ String addDaysStr(String dateStr, int n) =>
     fmtDate(parseDate(dateStr).add(Duration(days: n)));
 
 /// 24h -> Burmese 12h label (web: fmtTimeMm).
+/// Never throws: a malformed time is returned as-is.
 String fmtTimeMm(String hm) {
   if (hm.isEmpty) return '';
   final parts = hm.split(':');
-  final h = int.parse(parts[0]);
+  final h = int.tryParse(parts[0].trim());
+  if (h == null) return hm;
   final m = parts.length > 1 ? parts[1] : '00';
   final ap = h < 12
       ? 'နံနက်'
@@ -182,24 +195,40 @@ typedef MedDose = ({
   String status, // 'taken' | 'missed' | 'pending'
 });
 
+/// A med's dose times, tolerating the shapes real data arrives in:
+/// a List (normal), a comma-separated String ("08:00, 20:00"), or
+/// missing/other (no times). Used by the schedule, the Meds tab rows
+/// and the report — one bad med must not blank every tab that reads it.
+List<String> medTimes(Map<String, dynamic> m) => strList(m['times']);
+
 /// Today's med schedule for a profile, sorted by time (web: todaysMedSchedule).
+/// Tolerant of hostile shapes: `times` as a String, the day's medLog as
+/// a non-map, or a log value that is not a String — each degrades to
+/// "no dose" / "pending" instead of throwing and blanking the tab.
 List<MedDose> todaysMedSchedule(
   LocalStore local,
   String profileId,
   String dateStr,
 ) {
   final out = <MedDose>[];
-  final dayLog =
-      (local.map('medLog')[dateStr] as Map?)?.cast<String, dynamic>() ?? {};
+  final dayRaw = local.map('medLog')[dateStr];
+  final dayLog = <String, String>{};
+  if (dayRaw is Map) {
+    for (final e in dayRaw.entries) {
+      if (e.key is String && e.value is String) {
+        dayLog[e.key as String] = e.value as String;
+      }
+    }
+  }
   for (final m
       in local.list('meds').where((m) => m['profileId'] == profileId)) {
-    for (final tm in (m['times'] as List? ?? []).map((e) => '$e')) {
+    for (final tm in medTimes(m)) {
       final key = "${m['id']}@$tm";
       out.add((
         med: m,
         time: tm,
         key: key,
-        status: (dayLog[key] as String?) ?? 'pending',
+        status: dayLog[key] ?? 'pending',
       ));
     }
   }
@@ -208,13 +237,18 @@ List<MedDose> todaysMedSchedule(
 }
 
 /// Days of supply left (web: medSupplyLeft). Null when not tracked.
+/// Never throws: a non-string or malformed start date reads as untracked.
 int? medSupplyLeft(Map<String, dynamic> m) {
   final days = toInt(m['supplyDays']);
-  final start = m['supplyStartDate'] as String?;
-  if (days == null || start == null || start.isEmpty) return null;
-  final end = parseDate(addDaysStr(start, days));
-  final today = parseDate(todayStr());
-  return end.difference(today).inDays;
+  final start = strVal(m['supplyStartDate']);
+  if (days == null || start.isEmpty) return null;
+  try {
+    final end = parseDate(addDaysStr(start, days));
+    final today = parseDate(todayStr());
+    return end.difference(today).inDays;
+  } catch (_) {
+    return null;
+  }
 }
 
 /// Toggle a dose status (web: clicking the same status reverts to pending).
@@ -225,8 +259,13 @@ Future<void> toggleMedStatus(
   String status,
 ) async {
   final medLog = local.map('medLog');
-  final day =
-      (medLog[dateStr] as Map?)?.cast<String, dynamic>() ?? <String, dynamic>{};
+  final day = <String, dynamic>{};
+  final dayRaw = medLog[dateStr];
+  if (dayRaw is Map) {
+    for (final e in dayRaw.entries) {
+      if (e.key is String) day[e.key as String] = e.value;
+    }
+  }
   day[key] = (day[key] == status) ? 'pending' : status;
   medLog[dateStr] = day;
   local.db['medLog'] = medLog;
@@ -288,21 +327,24 @@ class PeriodSummary {
 /// Diffs use the first (oldest) up-to-3 gaps; prediction is from the most
 /// recent entry — exactly as the web app does.
 PeriodSummary calcPeriodSummary(LocalStore local, String profileId) {
+  // Entries with a missing/non-string start date are dropped rather
+  // than crashing the sort (same hostile-shape class as the blank tabs).
   final logs = local
       .list('periodLog')
-      .where((x) => x['profileId'] == profileId)
+      .where((x) =>
+          x['profileId'] == profileId && strVal(x['start']).isNotEmpty)
       .toList()
-    ..sort((a, b) => (a['start'] as String).compareTo(b['start'] as String));
+    ..sort((a, b) => strVal(a['start']).compareTo(strVal(b['start'])));
   if (logs.isEmpty) return PeriodSummary(count: 0, logs: logs);
-  final last = logs.last['start'] as String;
+  final last = strVal(logs.last['start']);
   if (logs.length < 2) {
     return PeriodSummary(count: logs.length, last: last, logs: logs);
   }
   final diffs = <int>[];
   final n = logs.length - 1 < 3 ? logs.length - 1 : 3;
   for (var i = 0; i < n; i++) {
-    diffs.add(parseDate(logs[i + 1]['start'] as String)
-        .difference(parseDate(logs[i]['start'] as String))
+    diffs.add(parseDate(strVal(logs[i + 1]['start']))
+        .difference(parseDate(strVal(logs[i]['start'])))
         .inDays);
   }
   final avg = (diffs.reduce((a, b) => a + b) / diffs.length).round();
@@ -323,9 +365,9 @@ PeriodSummary calcPeriodSummary(LocalStore local, String profileId) {
 
 /// '7 နာရီ 30 မိနစ်' (web: sleepDuration).
 String sleepDuration(Map<String, dynamic> s) {
-  final bed = s['bedtime'] as String?;
-  final wake = s['wakeTime'] as String?;
-  if (bed == null || wake == null || bed.isEmpty || wake.isEmpty) return '—';
+  final bed = strVal(s['bedtime']);
+  final wake = strVal(s['wakeTime']);
+  if (bed.isEmpty || wake.isEmpty) return '—';
   var d = hmToMin(wake) - hmToMin(bed);
   if (d <= 0) d += 1440;
   return '${d ~/ 60} နာရီ ${d % 60} မိနစ်';
@@ -527,7 +569,7 @@ Future<void> syncProfileWeightFromLog(
       .list('weightLog')
       .where((x) => x['profileId'] == p.id)
       .toList()
-    ..sort((a, b) => (a['date'] as String).compareTo(b['date'] as String));
+    ..sort((a, b) => strVal(a['date']).compareTo(strVal(b['date'])));
   if (logs.isEmpty) return;
   final latest = logs.last;
   p.weightKg = toDouble(latest['weight']);
