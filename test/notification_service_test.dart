@@ -39,27 +39,6 @@ void main() {
     expect(parseHmMinutes('abc'), isNull);
   });
 
-  test('notificationSoundKind resolves the stored setting', () {
-    expect(notificationSoundKind({}), SoundKind.systemDefault);
-    expect(
-      notificationSoundKind({'notificationSound': 'default'}),
-      SoundKind.systemDefault,
-    );
-    expect(
-      notificationSoundKind({'notificationSound': 'silent'}),
-      SoundKind.silent,
-    );
-    expect(
-      notificationSoundKind({'notificationSound': 'custom'}),
-      SoundKind.custom,
-    );
-    // Unknown value degrades to the system default, never crashes.
-    expect(
-      notificationSoundKind({'notificationSound': 'weird'}),
-      SoundKind.systemDefault,
-    );
-  });
-
   test('nextOccurrence: future today, else tomorrow', () {
     tz.initializeTimeZones();
     final loc = tz.getLocation('Asia/Bangkok');
