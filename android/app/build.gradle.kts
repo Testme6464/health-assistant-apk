@@ -15,6 +15,9 @@ android {
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
+        // Flag to enable support for the new language APIs
+        isCoreLibraryDesugaringEnabled = true
+        // Sets Java compatibility to Java 17
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
@@ -28,6 +31,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        multiDexEnabled = true
     }
 
     // Stable committed debug keystore (android/app/debug.keystore, PKCS12,
@@ -86,6 +90,15 @@ kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
+}
+
+dependencies {
+    // flutter_local_notifications (v10+) needs desugaring for scheduled
+    // notifications (java.time APIs on older Android).
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // Health Connect client — MainActivity requests permissions directly
+    // via the official API (same version the `health` plugin uses).
+    implementation("androidx.health.connect:connect-client:1.2.0-alpha02")
 }
 
 flutter {
