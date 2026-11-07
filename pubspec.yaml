@@ -1,7 +1,7 @@
 name: healthassistant
 description: "Health Assistant — Burmese health tracker with Firebase sync (offline-first)."
 publish_to: "none"
-version: 1.0.1+2
+version: 1.0.2+3
 
 environment:
   sdk: ^3.9.0
@@ -27,6 +27,13 @@ dependencies:
   share_plus: ^13.0.0
   file_picker: ^13.3.2
   health: ^13.3.2
+  android_intent_plus: ^6.1.0
+  flutter_local_notifications: ^23.0.0
+  # System notifications (reminders that fire when the app is closed):
+  # timezone for zoned scheduling, path_provider to store a picked
+  # ringtone where the system can read it.
+  timezone: ^0.11.2
+  path_provider: ^2.1.6
 
 dev_dependencies:
   flutter_test:
