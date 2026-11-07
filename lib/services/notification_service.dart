@@ -16,16 +16,23 @@
 // meds 2000+, bedtime 3000, meals 4000+) so cancelling reminders never
 // touches anything else.
 //
-// Ringtone: the bundled Energetic Rock clip (res/raw/energetic_rock.mp3
-// — the user's file, amplified 3x and looped to 1 minute). A bundled
-// res/raw sound is what makes the sound play even when the app is
-// closed: the system notification service reads it straight from the
-// APK, no app process or file access needed. Tapping a notification
+// Ringtone: the bundled Energetic Rock clip (the user's file,
+// amplified 3x and looped to 1 minute). It ships as a Flutter asset
+// (assets/sounds/energetic_rock.mp3) and is copied once to the app's
+// external files dir, where the system notification service can read
+// it even when the app is closed — a file:// URI the system can open.
+// (res/raw/ was tried first: the release build's resource optimizer
+// strips it because it is only referenced by string name, and
+// keep.xml did not keep it — v1.0.5/v1.0.6.) Tapping a notification
 // dismisses it, which stops the sound.
 //
 // Everything here is guarded: a failure to init/schedule must never
 // crash the app — reminders simply degrade to the in-app toasts.
+import 'dart:io';
+
+import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -203,7 +210,8 @@ class NotificationService {
     try {
       await _ensureInit();
       if (_bangkok == null) return;
-      final details = _details();
+      final soundPath = await _bundledSoundPath();
+      final details = _details(soundPath);
       final exact = await canScheduleExactAlarms();
       final mode = exact
           ? AndroidScheduleMode.exactAllowWhileIdle
@@ -238,7 +246,8 @@ class NotificationService {
       final mode = exact
           ? AndroidScheduleMode.exactAllowWhileIdle
           : AndroidScheduleMode.inexactAllowWhileIdle;
-      final details = _details();
+      final soundPath = await _bundledSoundPath();
+      final details = _details(soundPath);
 
       final scheduledIds = <int>[];
 
@@ -363,18 +372,44 @@ class NotificationService {
 
   // ---------------- internals ----------------
 
-  /// Every reminder uses the bundled Energetic Rock clip
-  /// (res/raw/energetic_rock.mp3). Because it lives in the APK, the
-  /// system notification service can play it even when the app is
-  /// closed — no app process or file access needed.
-  NotificationDetails _details() {
-    return const NotificationDetails(
+  /// Path of the bundled Energetic Rock clip, copied once from the
+  /// Flutter asset into the app's external files dir so the system
+  /// notification service can read it even when the app is closed.
+  /// Returns '' when the copy is unavailable (callers fall back to
+  /// the system default sound). Never throws.
+  Future<String> _bundledSoundPath() async {
+    try {
+      final ext = await getExternalStorageDirectory();
+      if (ext == null) return '';
+      final dir = Directory('${ext.path}/notification_sounds');
+      await dir.create(recursive: true);
+      final dest = File('${dir.path}/energetic_rock.mp3');
+      if (!await dest.exists()) {
+        final bytes = await rootBundle.load(
+          'assets/sounds/energetic_rock.mp3',
+        );
+        await dest.writeAsBytes(bytes.buffer.asUint8List());
+      }
+      return dest.path;
+    } catch (_) {
+      return '';
+    }
+  }
+
+  /// Every reminder uses the bundled Energetic Rock clip. When its
+  /// copied file is available the notification plays it (the system
+  /// reads the file:// URI even with the app closed); otherwise the
+  /// system default sound is used.
+  NotificationDetails _details(String soundPath) {
+    return NotificationDetails(
       android: AndroidNotificationDetails(
         channelId,
         channelName,
         importance: Importance.high,
         priority: Priority.high,
-        sound: RawResourceAndroidNotificationSound('energetic_rock'),
+        sound: soundPath.isNotEmpty
+            ? UriAndroidNotificationSound('file://$soundPath')
+            : null,
       ),
     );
   }
