@@ -16,20 +16,16 @@
 // meds 2000+, bedtime 3000, meals 4000+) so cancelling reminders never
 // touches anything else.
 //
-// Ringtone: the user can pick Default / Silent / a custom audio file
-// (stored in the reminders map as notificationSound /
-// notificationSoundPath / notificationSoundName). Android notification
-// channels are immutable once created, so when the sound choice changes
-// the channel is deleted first and recreated at the next fire with the
-// new sound. A missing custom file falls back to the system default.
+// Ringtone: the bundled Energetic Rock clip (res/raw/energetic_rock.mp3
+// — the user's file, amplified 3x and looped to 1 minute). A bundled
+// res/raw sound is what makes the sound play even when the app is
+// closed: the system notification service reads it straight from the
+// APK, no app process or file access needed. Tapping a notification
+// dismisses it, which stops the sound.
 //
 // Everything here is guarded: a failure to init/schedule must never
 // crash the app — reminders simply degrade to the in-app toasts.
-import 'dart:io';
-
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
@@ -95,20 +91,6 @@ tz.TZDateTime? nextOccurrence(String hhmm, tz.TZDateTime now) {
   return t;
 }
 
-/// Which sound the stored reminder settings ask for.
-enum SoundKind { systemDefault, silent, custom }
-
-SoundKind notificationSoundKind(Map<String, dynamic> reminders) {
-  switch (strVal(reminders['notificationSound']).trim().toLowerCase()) {
-    case 'silent':
-      return SoundKind.silent;
-    case 'custom':
-      return SoundKind.custom;
-    default:
-      return SoundKind.systemDefault;
-  }
-}
-
 // ---------------------------------------------------------------------------
 // Service.
 // ---------------------------------------------------------------------------
@@ -118,9 +100,8 @@ class NotificationService {
   static final NotificationService _instance = NotificationService._();
   factory NotificationService() => _instance;
 
-  static const String channelId = 'health_reminders';
+  static const String channelId = 'health_reminders_v2';
   static const String channelName = 'ကျန်းမာရေး သတိပေးချက်များ';
-  static const String _soundKeyPref = 'healthassistant_notif_sound_key_v1';
   static const String _idsPref = 'healthassistant_notif_ids_v1';
 
   final FlutterLocalNotificationsPlugin _plugin =
@@ -145,7 +126,20 @@ class NotificationService {
       const androidSettings =
           AndroidInitializationSettings('@mipmap/ic_launcher');
       const settings = InitializationSettings(android: androidSettings);
-      await _plugin.initialize(settings: settings);
+      await _plugin.initialize(
+        settings: settings,
+        // Tapping a notification cancels it, which stops its sound.
+        // (The plugin also auto-cancels on tap; this makes it explicit
+        // so the 1-minute Energetic Rock clip stops immediately.)
+        onDidReceiveNotificationResponse: (resp) async {
+          final id = resp.id;
+          if (id != null) {
+            try {
+              await _plugin.cancel(id: id);
+            } catch (_) {}
+          }
+        },
+      );
       _initialized = true;
       // Runtime permission dialog (Android 13+). If the user declines,
       // scheduled notifications simply never appear — no crash.
@@ -188,40 +182,6 @@ class NotificationService {
     }
   }
 
-  /// Pick an audio file for the reminder ringtone and store it where the
-  /// system notification service can read it. Returns the stored path
-  /// (or null when the user cancelled / the file is unusable). The
-  /// caller stores it in the reminders map and re-schedules.
-  ///
-  /// Files already in public shared storage (Music, Downloads, …) are
-  /// used as-is. Files that only exist in a picker cache are copied
-  /// into the app's external files dir so the copy survives cache
-  /// clears and app restarts.
-  Future<String?> pickAndStoreRingtone() async {
-    try {
-      final file = await FilePicker.pickFile(type: FileType.audio);
-      final path = file?.path;
-      if (path == null || path.isEmpty) return null;
-      final src = File(path);
-      if (!await src.exists()) return null;
-      if (path.startsWith('/storage/emulated/0/') &&
-          !path.contains('/Android/data/') &&
-          !path.contains('/cache/')) {
-        return path;
-      }
-      final ext = await getExternalStorageDirectory();
-      if (ext == null) return null;
-      final dir = Directory('${ext.path}/notification_sounds');
-      await dir.create(recursive: true);
-      final name = path.split('/').last;
-      final dest = File('${dir.path}/$name');
-      await src.copy(dest.path);
-      return dest.path;
-    } catch (_) {
-      return null;
-    }
-  }
-
   /// Cancel every reminder notification this service scheduled.
   Future<void> cancelAllReminders() async {
     try {
@@ -243,8 +203,7 @@ class NotificationService {
     try {
       await _ensureInit();
       if (_bangkok == null) return;
-      final r = _local.map('reminders');
-      final details = _details(r);
+      final details = _details();
       final exact = await canScheduleExactAlarms();
       final mode = exact
           ? AndroidScheduleMode.exactAllowWhileIdle
@@ -275,21 +234,11 @@ class NotificationService {
       final r = _local.map('reminders');
       final now = tz.TZDateTime.now(_bangkok!);
 
-      // The notification channel's sound is fixed at creation; when the
-      // user changed the ringtone, delete the channel so it is recreated
-      // at the next fire with the new sound.
-      final soundKey = _soundKey(r);
-      final prefs = await SharedPreferences.getInstance();
-      if (prefs.getString(_soundKeyPref) != soundKey) {
-        await _android?.deleteNotificationChannel(channelId: channelId);
-        await prefs.setString(_soundKeyPref, soundKey);
-      }
-
       final exact = await canScheduleExactAlarms();
       final mode = exact
           ? AndroidScheduleMode.exactAllowWhileIdle
           : AndroidScheduleMode.inexactAllowWhileIdle;
-      final details = _details(r);
+      final details = _details();
 
       final scheduledIds = <int>[];
 
@@ -302,8 +251,13 @@ class NotificationService {
         final end = strVal(r['waterEnd']).isEmpty
             ? '21:00'
             : strVal(r['waterEnd']);
+        // Cap: a 1-minute interval over 08:00-21:00 would be 781 alarms.
+        // Scheduling that many exact alarms is slow and can hit the
+        // system limit, so schedule at most 150 (2.5h at 1-min).
+        const maxWater = 150;
         var i = 0;
         for (final t in waterTimes(start, end, interval)) {
+          if (i >= maxWater) break;
           final when = nextOccurrence(t, now);
           if (when == null) continue;
           final id = 1000 + i++;
@@ -396,6 +350,7 @@ class NotificationService {
         }
       }
 
+      final prefs = await SharedPreferences.getInstance();
       await prefs.setStringList(
         _idsPref,
         scheduledIds.map((e) => '$e').toList(),
@@ -408,58 +363,20 @@ class NotificationService {
 
   // ---------------- internals ----------------
 
-  String _soundKey(Map<String, dynamic> r) {
-    final kind = notificationSoundKind(r);
-    if (kind == SoundKind.custom) {
-      return 'custom:${strVal(r['notificationSoundPath'])}';
-    }
-    return kind.name;
-  }
-
-  NotificationDetails _details(Map<String, dynamic> r) {
-    switch (notificationSoundKind(r)) {
-      case SoundKind.silent:
-        return const NotificationDetails(
-          android: AndroidNotificationDetails(
-            channelId,
-            channelName,
-            importance: Importance.high,
-            priority: Priority.high,
-            playSound: false,
-          ),
-        );
-      case SoundKind.custom:
-        final path = strVal(r['notificationSoundPath']);
-        if (path.isNotEmpty && File(path).existsSync()) {
-          return NotificationDetails(
-            android: AndroidNotificationDetails(
-              channelId,
-              channelName,
-              importance: Importance.high,
-              priority: Priority.high,
-              sound: UriAndroidNotificationSound('file://$path'),
-            ),
-          );
-        }
-        // Missing/deleted custom file: fall through to system default.
-        return const NotificationDetails(
-          android: AndroidNotificationDetails(
-            channelId,
-            channelName,
-            importance: Importance.high,
-            priority: Priority.high,
-          ),
-        );
-      case SoundKind.systemDefault:
-        return const NotificationDetails(
-          android: AndroidNotificationDetails(
-            channelId,
-            channelName,
-            importance: Importance.high,
-            priority: Priority.high,
-          ),
-        );
-    }
+  /// Every reminder uses the bundled Energetic Rock clip
+  /// (res/raw/energetic_rock.mp3). Because it lives in the APK, the
+  /// system notification service can play it even when the app is
+  /// closed — no app process or file access needed.
+  NotificationDetails _details() {
+    return const NotificationDetails(
+      android: AndroidNotificationDetails(
+        channelId,
+        channelName,
+        importance: Importance.high,
+        priority: Priority.high,
+        sound: RawResourceAndroidNotificationSound('energetic_rock'),
+      ),
+    );
   }
 
   /// A med's dose times, tolerating List or comma-String shapes and
