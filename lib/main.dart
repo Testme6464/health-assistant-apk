@@ -6,6 +6,8 @@ import 'package:google_sign_in/google_sign_in.dart';
 
 import 'screens/auth_screen.dart';
 import 'screens/home_shell.dart';
+import 'services/local_store.dart';
+import 'services/notification_service.dart';
 import 'theme.dart';
 
 /// Health Assistant APK — stage 1 skeleton.
@@ -23,6 +25,13 @@ Future<void> main() async {
   // Google Sign-In v7: initialize once (Android reads the OAuth client
   // from google-services.json).
   await GoogleSignIn.instance.initialize();
+  // System notifications (reminders that fire when the app is closed).
+  // Guarded: notification init/scheduling must never block startup.
+  try {
+    await NotificationService().init();
+    await LocalStore().load();
+    await NotificationService().scheduleAll();
+  } catch (_) {}
   runApp(const HealthAssistantApp());
 }
 
