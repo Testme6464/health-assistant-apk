@@ -25,6 +25,33 @@ class LocalStore {
 
   Map<String, dynamic> _db = {};
   bool _loaded = false;
+  // Single shared load future: all 12 tabs + SyncService call load()
+  // concurrently at startup. Without this, every caller sees _loaded ==
+  // false and starts its own SharedPreferences read + jsonDecode, racing
+  // to set _db. Sharing one future guarantees exactly one load and every
+  // caller awaits the same completed result.
+  Future<void>? _loadFuture;
+
+  Future<void> load() async {
+    if (_loaded) return;
+    _loadFuture ??= _doLoad();
+    await _loadFuture;
+  }
+
+  Future<void> _doLoad() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getString(_dbKey);
+    if (raw != null && raw.isNotEmpty) {
+      try {
+        _db = jsonDecode(raw) as Map<String, dynamic>;
+      } catch (_) {
+        _db = _emptyDb();
+      }
+    } else {
+      _db = _emptyDb();
+    }
+    _loaded = true;
+  }
 
   /// All collections the sync layer knows about. Each holds a list of
   /// record maps, except `settings` / `reminders` / `plans` (single maps).
@@ -45,22 +72,6 @@ class LocalStore {
     'reminders',
     'settings',
   ];
-
-  Future<void> load() async {
-    if (_loaded) return;
-    final prefs = await SharedPreferences.getInstance();
-    final raw = prefs.getString(_dbKey);
-    if (raw != null && raw.isNotEmpty) {
-      try {
-        _db = jsonDecode(raw) as Map<String, dynamic>;
-      } catch (_) {
-        _db = _emptyDb();
-      }
-    } else {
-      _db = _emptyDb();
-    }
-    _loaded = true;
-  }
 
   Map<String, dynamic> _emptyDb() => {
         'version': 1,
@@ -108,7 +119,15 @@ class LocalStore {
 
   List<Map<String, dynamic>> list(String collection) {
     final v = _db[collection];
-    if (v is List) return v.cast<Map<String, dynamic>>();
+    if (v is List) {
+      // Skip non-map entries instead of throwing on the cast: one
+      // corrupt record in a collection must not blank every tab that
+      // reads it (blank-tab audit, 2026-11-06).
+      return v
+          .whereType<Map>()
+          .map((e) => e.cast<String, dynamic>())
+          .toList();
+    }
     return [];
   }
 
