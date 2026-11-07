@@ -11,6 +11,7 @@ import 'package:share_plus/share_plus.dart';
 import '../../models/health_data.dart';
 import '../../services/auth_service.dart';
 import '../../services/gemini_service.dart';
+import '../../services/health_connect_service.dart';
 import '../../services/key_store.dart';
 import '../../services/local_store.dart';
 import '../../services/sync_service.dart';
@@ -282,25 +283,7 @@ class _SettingsTabState extends State<SettingsTab> with TabLoader<SettingsTab> {
             ),
           ),
         ),
-        const Card(
-          child: Padding(
-            padding: EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  '🔗 ချိတ်ဆက်မှုများ',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                SizedBox(height: 8),
-                Text(
-                  '❤️ Health Connect — APK နောက်အဆင့်မှာ ရမယ်',
-                  style: TextStyle(fontSize: 13),
-                ),
-              ],
-            ),
-          ),
-        ),
+        _HealthConnectCard(),
         const Card(
           child: Padding(
             padding: EdgeInsets.all(16),
@@ -318,7 +301,7 @@ class _SettingsTabState extends State<SettingsTab> with TabLoader<SettingsTab> {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'App version 1.0.0 (release)။',
+                  'App version 1.0.1 (release)။',
                   style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ],
@@ -343,6 +326,119 @@ class _SettingsTabState extends State<SettingsTab> with TabLoader<SettingsTab> {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Health Connect card (Stage 3): shows the connection state and lets the
+/// user connect, install, or pull today's steps + workouts.
+class _HealthConnectCard extends StatefulWidget {
+  const _HealthConnectCard();
+
+  @override
+  State<_HealthConnectCard> createState() => _HealthConnectCardState();
+}
+
+class _HealthConnectCardState extends State<_HealthConnectCard> {
+  final _hc = HealthConnectService();
+  HCStatus? _status;
+  String? _msg;
+  bool _busy = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _refresh();
+  }
+
+  Future<void> _refresh() async {
+    final s = await _hc.status();
+    if (mounted) setState(() => _status = s);
+  }
+
+  Future<void> _connect() async {
+    setState(() => _busy = true);
+    final ok = await _hc.requestPermissions();
+    setState(() => _busy = false);
+    await _refresh();
+    if (mounted) {
+      setState(() => _msg = ok
+          ? '✅ Health Connect ချိတ်ပြီးပါပြီ'
+          : 'ခွင့်ပြုချက် မရပါ — Health Connect app ထဲမှာ ခွင့်ပြုပေးပါ');
+    }
+  }
+
+  Future<void> _syncNow() async {
+    final p = LocalStore().activeProfile;
+    if (p == null) {
+      setState(() => _msg = 'Profile မရှိသေးပါ — အရင် profile ဖန်တီးပါ');
+      return;
+    }
+    setState(() => _busy = true);
+    final msg = await _hc.syncToday(p.id, p.weightKg ?? 70);
+    setState(() {
+      _busy = false;
+      _msg = msg ?? 'ဒီနေ့ Health Connect data မရှိသေးပါ';
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = _status;
+    final String statusText;
+    switch (s) {
+      case HCStatus.ready:
+        statusText = '✅ ချိတ်ထားပြီးပါပြီ — ခြေလှမ်း နဲ့ လေ့ကျင့်ခန်း အလိုလို ရောက်လာမယ်';
+        break;
+      case HCStatus.noPermission:
+        statusText = 'Health Connect ရှိပါတယ် — ခွင့်ပြုချက် ပေးဖို့ လိုပါတယ်';
+        break;
+      case HCStatus.notInstalled:
+        statusText = 'Health Connect app မရှိသေးပါ — install လုပ်ဖို့ လိုပါတယ်';
+        break;
+      case HCStatus.unavailable:
+        statusText = 'ဒီဖုန်းမှာ Health Connect မရပါ';
+        break;
+      case null:
+        statusText = 'စစ်နေသည်…';
+        break;
+    }
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text(
+              '🔗 ချိတ်ဆက်မှုများ',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 8),
+            Text('❤️ Health Connect', style: const TextStyle(fontSize: 13)),
+            Text(statusText, style: const TextStyle(fontSize: 13)),
+            if (_msg != null) ...[
+              const SizedBox(height: 4),
+              Text(_msg!, style: const TextStyle(fontSize: 13)),
+            ],
+            const SizedBox(height: 8),
+            if (s == HCStatus.notInstalled)
+              OutlinedButton(
+                onPressed: _busy ? null : () => _hc.installApp(),
+                child: const Text('Health Connect install လုပ်မယ်'),
+              )
+            else if (s == HCStatus.noPermission)
+              OutlinedButton(
+                onPressed: _busy ? null : _connect,
+                child: Text(_busy ? 'စောင့်နေသည်…' : 'Health Connect ချိတ်မယ်'),
+              )
+            else if (s == HCStatus.ready)
+              OutlinedButton(
+                onPressed: _busy ? null : _syncNow,
+                child: Text(_busy ? 'ဆွဲနေသည်…' : 'ဒီနေ့ data ဆွဲယူမယ်'),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

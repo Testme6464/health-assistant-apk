@@ -229,51 +229,44 @@ class _HomeTabState extends State<HomeTab> with TabLoader<HomeTab> {
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text(
                   '🚶 လှုပ်ရှားမှု',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: RichText(
-                        text: TextSpan(
-                          style: const TextStyle(
-                            fontSize: 14,
-                            color: Colors.black87,
-                          ),
-                          children: [
-                            const TextSpan(text: 'ဒီနေ့ ခြေလှမ်း: '),
-                            TextSpan(
-                              text: '$stepsToday',
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold),
-                            ),
-                            const TextSpan(text: ' · လောင်ကျွမ်း: '),
-                            TextSpan(
-                              text: '~$actKcal kcal',
-                              style: const TextStyle(
-                                  fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                      ),
+                RichText(
+                  text: TextSpan(
+                    style: const TextStyle(
+                      fontSize: 14,
+                      color: Colors.black87,
                     ),
-                    const SizedBox(width: 8),
-                    OutlinedButton(
-                      onPressed: () => showActivityModal(
-                        context,
-                        local,
-                        p,
-                        onSaved: refresh,
+                    children: [
+                      const TextSpan(text: 'ဒီနေ့ ခြေလှမ်း: '),
+                      TextSpan(
+                        text: '$stepsToday',
+                        style:
+                            const TextStyle(fontWeight: FontWeight.bold),
                       ),
-                      child: const Text('ခြေလှမ်းထည့်ရန်'),
-                    ),
-                  ],
+                      const TextSpan(text: ' · လောင်ကျွမ်း: '),
+                      TextSpan(
+                        text: '~$actKcal kcal',
+                        style:
+                            const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton(
+                  onPressed: () => showActivityModal(
+                    context,
+                    local,
+                    p,
+                    onSaved: refresh,
+                  ),
+                  child: const Text('ခြေလှမ်းထည့်ရန်'),
                 ),
               ],
             ),

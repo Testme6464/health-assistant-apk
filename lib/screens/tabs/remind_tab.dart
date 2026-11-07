@@ -746,32 +746,25 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const Text(
                   '🚶 ဒီနေ့ လှုပ်ရှားမှု',
                   style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        'ခြေလှမ်း: ${actRec == null ? 0 : toInt(actRec['steps']) ?? 0} · မိနစ်: ${actRec == null ? 0 : toInt(actRec['minutes']) ?? 0} · လောင်ကျွမ်း: ~$actKcal kcal',
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    OutlinedButton(
-                      onPressed: () => showActivityModal(
-                        context,
-                        local,
-                        p,
-                        onSaved: refresh,
-                      ),
-                      child: const Text('ပြင်/ထည့်မယ်'),
-                    ),
-                  ],
+                Text(
+                  'ခြေလှမ်း: ${actRec == null ? 0 : toInt(actRec['steps']) ?? 0} · မိနစ်: ${actRec == null ? 0 : toInt(actRec['minutes']) ?? 0} · လောင်ကျွမ်း: ~$actKcal kcal',
+                ),
+                const SizedBox(height: 12),
+                OutlinedButton(
+                  onPressed: () => showActivityModal(
+                    context,
+                    local,
+                    p,
+                    onSaved: refresh,
+                  ),
+                  child: const Text('ပြင်/ထည့်မယ်'),
                 ),
               ],
             ),
