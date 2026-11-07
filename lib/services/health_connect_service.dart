@@ -125,22 +125,23 @@ class HealthConnectService {
 
   /// Open the system Health Connect settings (App permissions screen) so
   /// the user can grant the permission manually when the in-app prompt
-  /// does not appear. Tries the system settings intent first (Android 14+),
-  /// then launching the Health Connect app itself (Android 13 and below,
-  /// where it is a separate app), then the Play Store page.
+  /// does not appear. Launches the Health Connect app itself first (the
+  /// reliable path on MIUI, where the system settings action can open
+  /// an unrelated settings page instead), then the system settings
+  /// action (Android 14+), then the Play Store page.
   Future<void> openHealthConnectSettings() async {
-    const settingsAction = 'android.settings.HEALTH_CONNECT_SETTINGS';
-    try {
-      await const AndroidIntent(action: settingsAction).launch();
-      return;
-    } catch (_) {
-      // Fall through to the next option.
-    }
     try {
       await const AndroidIntent(
         action: 'android.intent.action.MAIN',
         package: 'com.google.android.apps.healthdata',
       ).launch();
+      return;
+    } catch (_) {
+      // Fall through to the next option.
+    }
+    const settingsAction = 'android.settings.HEALTH_CONNECT_SETTINGS';
+    try {
+      await const AndroidIntent(action: settingsAction).launch();
       return;
     } catch (_) {
       // Fall through to the Play Store page.

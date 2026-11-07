@@ -236,6 +236,33 @@ class NotificationService {
     } catch (_) {}
   }
 
+  /// Send a test notification 5 seconds from now (same channel and
+  /// ringtone as the real reminders) so the user can verify on the
+  /// phone that notifications actually appear and sound. Never throws.
+  Future<void> sendTestNotification() async {
+    try {
+      await _ensureInit();
+      if (_bangkok == null) return;
+      final r = _local.map('reminders');
+      final details = _details(r);
+      final exact = await canScheduleExactAlarms();
+      final mode = exact
+          ? AndroidScheduleMode.exactAllowWhileIdle
+          : AndroidScheduleMode.inexactAllowWhileIdle;
+      final when = tz.TZDateTime.now(_bangkok!).add(
+        const Duration(seconds: 5),
+      );
+      await _plugin.zonedSchedule(
+        id: 9999,
+        title: '🔔 စမ်းသပ်ချက်',
+        body: 'Notification အလုပ်လုပ်ပါတယ် ✅',
+        scheduledDate: when,
+        notificationDetails: details,
+        androidScheduleMode: mode,
+      );
+    } catch (_) {}
+  }
+
   /// (Re)schedule all reminders from the current LocalStore data.
   /// Cancels the previous set first. Never throws.
   Future<void> scheduleAll() async {
