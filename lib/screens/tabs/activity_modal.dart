@@ -1,13 +1,69 @@
 // Shared activity modal (web: openStepsModal) — used by the Home tab
 // ("ခြေလှမ်းထည့်ရန်") and the Reminders tab ("ပြင်/ထည့်မယ်").
-// Steps + exercise type + minutes, with a live kcal preview; saves one
-// activityLog record per profile per day (source 'manual').
+// Logs ONE exercise session per save; each save ADDS to today's
+// activityLog record (steps/minutes/kcal accumulate) instead of
+// replacing it, so several sessions in a day show as a daily total.
+// The fields start empty for a fresh session; today's running total is
+// shown as a reference line above them.
 import 'package:flutter/material.dart';
 
 import '../../data/static_data.dart';
 import '../../models/health_data.dart';
 import '../../services/local_store.dart';
 import 'tab_common.dart';
+
+/// Merge one exercise session into today's activity record.
+/// If [existing] is null, returns a new record; otherwise ADDS the
+/// session's steps/minutes/kcal to the running total (several sessions
+/// in a day accumulate) and keeps the exercise type of the longer
+/// session (dominant activity).
+Map<String, dynamic> mergeActivitySession({
+  required Map<String, dynamic>? existing,
+  required String profileId,
+  required String date,
+  required int steps,
+  required int minutes,
+  required int exerciseType,
+  required double weightKg,
+}) {
+  final k = activityKcal(
+    steps: steps,
+    exerciseType: exerciseType,
+    minutes: minutes,
+    weightKg: weightKg,
+  );
+  if (existing == null) {
+    return {
+      'id': newId(),
+      'profileId': profileId,
+      'date': date,
+      'steps': steps,
+      'minutes': minutes,
+      'exerciseType': exerciseType,
+      'stepsKcal': k.stepsKcal,
+      'exKcal': k.exKcal,
+      'kcal': k.total,
+      'source': 'manual',
+    };
+  }
+  final prevSteps = toInt(existing['steps']) ?? 0;
+  final prevMins = toInt(existing['minutes']) ?? 0;
+  final prevStepsKcal = toInt(existing['stepsKcal']) ?? 0;
+  final prevExKcal = toInt(existing['exKcal']) ?? 0;
+  final totalStepsKcal = prevStepsKcal + k.stepsKcal;
+  final totalExKcal = prevExKcal + k.exKcal;
+  final keepType = prevMins >= minutes
+      ? (toInt(existing['exerciseType']) ?? 1)
+      : exerciseType;
+  return Map<String, dynamic>.from(existing)
+    ..['steps'] = prevSteps + steps
+    ..['minutes'] = prevMins + minutes
+    ..['exerciseType'] = keepType
+    ..['stepsKcal'] = totalStepsKcal
+    ..['exKcal'] = totalExKcal
+    ..['kcal'] = totalStepsKcal + totalExKcal
+    ..['source'] = 'manual';
+}
 
 Future<void> showActivityModal(
   BuildContext context,
@@ -21,13 +77,11 @@ Future<void> showActivityModal(
     (a) => a['profileId'] == p.id && a['date'] == t,
   );
   final ex = existing.isEmpty ? null : existing.first;
-  final stepsCtrl = TextEditingController(
-    text: ex != null ? '${ex['steps'] ?? ''}' : '',
-  );
-  final minsCtrl = TextEditingController(
-    text: ex != null ? '${ex['minutes'] ?? ''}' : '',
-  );
-  var exType = toInt(ex?['exerciseType']) ?? 1;
+  // Fresh session each time the modal opens — do NOT pre-fill with
+  // today's totals, or saving would double-count them.
+  final stepsCtrl = TextEditingController();
+  final minsCtrl = TextEditingController();
+  var exType = 1;
 
   await showDialog(
     context: context,
@@ -52,6 +106,14 @@ Future<void> showActivityModal(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                  if (ex != null)
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Text(
+                        'ဒီနေ့ စုစုပေါင်း: ခြေလှမ်း ${toInt(ex['steps']) ?? 0} · ${toInt(ex['minutes']) ?? 0} မိနစ် · ~${toInt(ex['kcal']) ?? 0} kcal',
+                        style: const TextStyle(fontWeight: FontWeight.bold),
+                      ),
+                    ),
                   const Text('ခြေလှမ်း အရေအတွက်'),
                   const SizedBox(height: 4),
                   TextField(
@@ -114,27 +176,16 @@ Future<void> showActivityModal(
               ),
               ElevatedButton(
                 onPressed: () async {
-                  final rec = {
-                    'steps': steps,
-                    'minutes': mins,
-                    'exerciseType': exType,
-                    'stepsKcal': k.stepsKcal,
-                    'exKcal': k.exKcal,
-                    'kcal': k.total,
-                    'source': 'manual',
-                  };
-                  if (ex != null) {
-                    final updated = Map<String, dynamic>.from(ex)
-                      ..addAll(rec);
-                    await local.upsert('activityLog', updated);
-                  } else {
-                    await local.upsert('activityLog', {
-                      'id': newId(),
-                      'profileId': p.id,
-                      'date': t,
-                      ...rec,
-                    });
-                  }
+                  final merged = mergeActivitySession(
+                    existing: ex,
+                    profileId: p.id,
+                    date: t,
+                    steps: steps,
+                    minutes: mins,
+                    exerciseType: exType,
+                    weightKg: w,
+                  );
+                  await local.upsert('activityLog', merged);
                   if (ctx.mounted) Navigator.pop(ctx);
                   if (context.mounted) {
                     showToast(context, 'မှတ်တမ်းတင်ပြီးပါပြီ ✅');

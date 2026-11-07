@@ -1,15 +1,15 @@
 // ⏰ သတိပေးချက်များ — faithful port of web renderRemind / openSleepModal /
 // scheduleCheck (~/workspace/health-app/app.js). Every Burmese string is
-// copied from app.js, never typed from memory. App-open reminders only:
-// a 1-minute timer shows a SnackBar when a reminder is due; there are no
-// background notifications here (that is a later step) and no notification
-// plugin is used.
+// copied from app.js, never typed from memory. System notifications
+// (NotificationService) fire even when the app is closed; the 1-minute
+// in-app timer + toast below stays as the in-app fallback.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 
 import '../../data/static_data.dart';
 import '../../models/health_data.dart';
+import '../../services/notification_service.dart';
 import '../../theme.dart';
 import 'activity_modal.dart';
 import 'tab_common.dart';
@@ -38,6 +38,11 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
   String _waterStart = '08:00';
   String _waterEnd = '21:00';
   String _bedtime = '22:30';
+
+  // ---- notification sound + exact-alarm permission state ----
+  String _soundChoice = 'default';
+  String _soundName = '';
+  bool? _exactAlarms;
 
   // ---- meal-plan form state ----
   String _mpDate = todayStr();
@@ -79,7 +84,91 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
     _waterStart = ws.isEmpty ? '08:00' : ws;
     _waterEnd = we.isEmpty ? '21:00' : we;
     _bedtime = bt.isEmpty ? '22:30' : bt;
+    final sc = strVal(r['notificationSound']);
+    _soundChoice = sc.isEmpty ? 'default' : sc;
+    _soundName = strVal(r['notificationSoundName']);
     _settingsInit = true;
+  }
+
+  String get _soundLabel {
+    switch (_soundChoice) {
+      case 'silent':
+        return 'Silent (အသံမပါ)';
+      case 'custom':
+        return _soundName.isEmpty ? 'Custom file' : _soundName;
+      default:
+        return 'Default (စနစ်အသံ)';
+    }
+  }
+
+  /// Ringtone chooser: Default / Silent / pick an audio file.
+  /// Persists the choice in the reminders map and re-schedules.
+  Future<void> _pickRingtoneChoice() async {
+    final choice = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('🔔 Notification အသံ'),
+        children: [
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(ctx, 'default'),
+            child: const Text('Default — စနစ်အသံ'),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(ctx, 'silent'),
+            child: const Text('Silent — အသံမပါ'),
+          ),
+          SimpleDialogOption(
+            onPressed: () => Navigator.pop(ctx, 'custom'),
+            child: const Text('Custom file — ကိုယ်ကြိုက်တဲ့ အသံဖိုင် ရွေးမယ်'),
+          ),
+        ],
+      ),
+    );
+    if (choice == null || !mounted) return;
+    final r = local.map('reminders');
+    if (choice == 'custom') {
+      final path = await NotificationService().pickAndStoreRingtone();
+      if (path == null) {
+        if (mounted) showToast(context, 'ဖိုင်မရွေးခဲ့ပါ');
+        return;
+      }
+      r['notificationSound'] = 'custom';
+      r['notificationSoundPath'] = path;
+      r['notificationSoundName'] = path.split('/').last;
+      setState(() {
+        _soundChoice = 'custom';
+        _soundName = path.split('/').last;
+      });
+    } else {
+      r['notificationSound'] = choice;
+      r['notificationSoundPath'] = '';
+      r['notificationSoundName'] = '';
+      setState(() {
+        _soundChoice = choice;
+        _soundName = '';
+      });
+    }
+    local.db['reminders'] = r;
+    await local.markDirty('reminders');
+    await local.save();
+    await NotificationService().scheduleAll();
+    if (mounted) showToast(context, 'အသံ သိမ်းပြီးပါပြီ ✅');
+  }
+
+  /// Ask for notification + exact-alarm permission, then refresh status.
+  Future<void> _requestNotifPermissions() async {
+    await NotificationService().requestNotificationsPermission();
+    await NotificationService().requestExactAlarmsPermission();
+    final exact = await NotificationService().canScheduleExactAlarms();
+    if (mounted) {
+      setState(() => _exactAlarms = exact);
+      showToast(
+        context,
+        exact
+            ? 'အချိန်မှန် သတိပေးနိုင်ပါပြီ ✅'
+            : 'Exact alarm မရသေးပါ — system settings မှာ ဖွင့်ပေးပါ',
+      );
+    }
   }
 
   // ---------------- in-app reminder checker (web: scheduleCheck) ----------------
@@ -201,6 +290,8 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
     local.db['reminders'] = r;
     await local.markDirty('reminders');
     await local.save();
+    // Re-schedule the system notifications with the new settings.
+    await NotificationService().scheduleAll();
     _checkReminders();
     if (mounted) showToast(context, 'သိမ်းပြီးပါပြီ ✅');
   }
@@ -377,7 +468,15 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
     if (!_settingsInit) _initSettingsFromDb();
     if (!_didInitialCheck) {
       _didInitialCheck = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) => _checkReminders());
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _checkReminders();
+        // Re-schedule system notifications with the current settings
+        // (covers fresh installs and changes made elsewhere).
+        NotificationService().scheduleAll();
+        NotificationService().canScheduleExactAlarms().then((v) {
+          if (mounted) setState(() => _exactAlarms = v);
+        });
+      });
     }
 
     final t = todayStr();
@@ -429,7 +528,7 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
           child: const Padding(
             padding: EdgeInsets.all(16),
             child: Text(
-              'ℹ️ App ကို ဖွင့်ထားမှ သတိပေးချက်များ ရပါမယ်။',
+              'ℹ️ သတိပေးချက်များက app ပိတ်ထားရင်တောင် system notification အနေနဲ့ လာပါမယ်။',
             ),
           ),
         ),
@@ -516,6 +615,37 @@ class _RemindTabState extends State<RemindTab> with TabLoader<RemindTab> {
                     final picked = await pickTimeStr(context, _bedtime);
                     if (picked != null) setState(() => _bedtime = picked);
                   },
+                ),
+                const SizedBox(height: 12),
+                const Text('🔔 Notification အသံ'),
+                const SizedBox(height: 4),
+                Row(
+                  children: [
+                    Expanded(child: Text(_soundLabel)),
+                    OutlinedButton(
+                      onPressed: _pickRingtoneChoice,
+                      child: const Text('ရွေးမယ်'),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        _exactAlarms == null
+                            ? 'Notification ခွင့်ပြုချက် စစ်နေသည်…'
+                            : _exactAlarms!
+                                ? '✅ အချိန်မှန် သတိပေးနိုင်ပါတယ်'
+                                : '⚠️ အချိန်မှန် သတိပေးဖို့ "Alarms & reminders" ခွင့်ပြုချက် လိုပါတယ်',
+                        style: const TextStyle(fontSize: 13),
+                      ),
+                    ),
+                    OutlinedButton(
+                      onPressed: _requestNotifPermissions,
+                      child: const Text('ခွင့်ပြုချက် တောင်းမယ်'),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 SizedBox(

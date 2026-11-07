@@ -14,7 +14,6 @@ import '../../services/gemini_service.dart';
 import '../../services/health_connect_service.dart';
 import '../../services/key_store.dart';
 import '../../services/local_store.dart';
-import '../../services/sync_service.dart';
 import '../../theme.dart';
 import '../keys_screen.dart';
 import 'tab_common.dart';
@@ -27,7 +26,6 @@ class SettingsTab extends StatefulWidget {
 }
 
 class _SettingsTabState extends State<SettingsTab> with TabLoader<SettingsTab> {
-  final _sync = SyncService();
   bool _signingOut = false;
 
   void _openKeys() {
@@ -162,36 +160,6 @@ class _SettingsTabState extends State<SettingsTab> with TabLoader<SettingsTab> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text(
-                  '🔄 Server Sync (Firestore)',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                ValueListenableBuilder<SyncStatus>(
-                  valueListenable: _sync.status,
-                  builder: (context, s, _) => Text(s.labelMm),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Offline မှာ ဖုန်းထဲမှာ သိမ်းထားပြီး online ဖြစ်တာနဲ့ အလိုလို server ကို ပို့ပါတယ်။',
-                  style: TextStyle(fontSize: 13, color: Colors.grey),
-                ),
-                const SizedBox(height: 12),
-                OutlinedButton.icon(
-                  onPressed: () => _sync.syncNow(),
-                  icon: const Icon(Icons.sync),
-                  label: const Text('အခု Sync လုပ်မယ်'),
-                ),
-              ],
-            ),
-          ),
-        ),
-        Card(
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
                   '🤖 Gemini AI (BYOK)',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
@@ -301,7 +269,7 @@ class _SettingsTabState extends State<SettingsTab> with TabLoader<SettingsTab> {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'App version 1.0.1 (release)။',
+                  'App version 1.0.2 (release)။',
                   style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ],
@@ -364,7 +332,7 @@ class _HealthConnectCardState extends State<_HealthConnectCard> {
     if (mounted) {
       setState(() => _msg = ok
           ? '✅ Health Connect ချိတ်ပြီးပါပြီ'
-          : 'ခွင့်ပြုချက် မရပါ — Health Connect app ထဲမှာ ခွင့်ပြုပေးပါ');
+          : 'ခွင့်ပြုချက် မရသေးပါ — အောက်က "Health Connect settings ဖွင့်မယ်" ကနေ ခွင့်ပြုပေးပါ');
     }
   }
 
@@ -426,12 +394,24 @@ class _HealthConnectCardState extends State<_HealthConnectCard> {
                 onPressed: _busy ? null : () => _hc.installApp(),
                 child: const Text('Health Connect install လုပ်မယ်'),
               )
-            else if (s == HCStatus.noPermission)
+            else if (s == HCStatus.noPermission) ...[
               OutlinedButton(
                 onPressed: _busy ? null : _connect,
                 child: Text(_busy ? 'စောင့်နေသည်…' : 'Health Connect ချိတ်မယ်'),
-              )
-            else if (s == HCStatus.ready)
+              ),
+              const SizedBox(height: 8),
+              OutlinedButton(
+                onPressed: _busy
+                    ? null
+                    : () => _hc.openHealthConnectSettings(),
+                child: const Text('Health Connect settings ဖွင့်မယ်'),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                'ခွင့်ပြုချက် မေးတဲ့ ပြတင်းပေါက် မပေါ်ရင် settings ကနေ ကိုယ်တိုင် ခွင့်ပြုပေးပါ — ပြီးရင် ဒီ tab ကို ပြန်ဖွင့်ပြီး "ချိတ်မယ်" ကို ထပ်နှိပ်ပါ။',
+                style: TextStyle(fontSize: 12, color: Colors.grey),
+              ),
+            ] else if (s == HCStatus.ready)
               OutlinedButton(
                 onPressed: _busy ? null : _syncNow,
                 child: Text(_busy ? 'ဆွဲနေသည်…' : 'ဒီနေ့ data ဆွဲယူမယ်'),
