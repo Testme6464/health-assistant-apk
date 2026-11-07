@@ -21,7 +21,10 @@ android {
 
     defaultConfig {
         applicationId = "com.tryo.healthassistant"
-        minSdk = flutter.minSdkVersion
+        // 26, not flutter.minSdkVersion (24): the `health` package
+        // (Health Connect) declares minSdk 26 and the manifest merger
+        // fails below it. Safe for the target phone (Android 13+).
+        minSdk = 26
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
