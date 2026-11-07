@@ -75,3 +75,4 @@ app.*.map.json
 
 # Local tooling
 flutter_linux_*.tar.xz
+android/app/release.keystore
