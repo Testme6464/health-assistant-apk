@@ -269,7 +269,7 @@ class _SettingsTabState extends State<SettingsTab> with TabLoader<SettingsTab> {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'App version 1.0.5 (release)။',
+                  'App version 1.0.6 (release)။',
                   style: TextStyle(fontSize: 12, color: Colors.grey),
                 ),
               ],
